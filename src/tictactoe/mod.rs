@@ -51,6 +51,15 @@ impl<T> Grid<T> {
     }
 }
 
+impl<T: Copy> Grid<T> {
+    pub fn get(&self, position: vec2<Coord>) -> Option<T> {
+        self.cells
+            .get(position.y)
+            .and_then(|row| row.get(position.x))
+            .copied()
+    }
+}
+
 impl Grid<Cell> {
     pub fn new() -> Self {
         Self {
@@ -69,13 +78,6 @@ impl Grid<Cell> {
     pub fn empty_positions(&self) -> impl Iterator<Item = vec2<Coord>> + '_ {
         self.positions()
             .filter(|&pos| matches!(self.get(pos), Some(Cell::Empty)))
-    }
-
-    pub fn get(&self, position: vec2<Coord>) -> Option<Cell> {
-        self.cells
-            .get(position.y)
-            .and_then(|row| row.get(position.x))
-            .copied()
     }
 
     pub fn set(&mut self, position: vec2<Coord>, cell: Cell) {

@@ -11,11 +11,12 @@ pub struct State {
     camera: Camera2d,
     model: Grid,
     minimax_cache: BTreeMap<Grid, (Action, f64)>,
+    values: Grid<f64>,
 }
 
 impl State {
     pub fn new(geng: &Geng) -> State {
-        State {
+        let mut state = State {
             geng: geng.clone(),
             framebuffer_size: vec2(1, 1),
             camera: Camera2d {
@@ -25,15 +26,18 @@ impl State {
             },
             model: Grid::new(),
             minimax_cache: BTreeMap::new(),
-        }
+            values: Grid::zero(),
+        };
+        state.update_values();
+        state
     }
 
     fn draw_x(&self, pos: vec2<usize>, transparency: f32, framebuffer: &mut ugli::Framebuffer) {
-        let ratio = 0.8;
+        let ratio = 0.7;
         let aabb =
             Aabb2::point(pos.as_f32() + vec2(0.5, 0.5)).extend_symmetric(vec2(ratio, ratio) / 2.0);
 
-        let mut color = Rgba::RED;
+        let mut color = Rgba::GRAY;
         color.a *= transparency;
         self.geng.draw2d().draw2d(
             framebuffer,
@@ -48,11 +52,11 @@ impl State {
     }
 
     fn draw_o(&self, pos: vec2<usize>, transparency: f32, framebuffer: &mut ugli::Framebuffer) {
-        let ratio = 0.8;
+        let ratio = 0.9;
         let aabb =
             Aabb2::point(pos.as_f32() + vec2(0.5, 0.5)).extend_symmetric(vec2(ratio, ratio) / 2.0);
 
-        let mut color = Rgba::CYAN;
+        let mut color = Rgba::GRAY;
         color.a *= transparency;
         self.geng.draw2d().draw2d(
             framebuffer,
@@ -64,6 +68,11 @@ impl State {
                 color,
             ),
         );
+    }
+
+    fn update_values(&mut self) {
+        let mut policy = policy_minimax_cached(None, &mut self.minimax_cache);
+        self.values = self.model.shapley(&mut policy);
     }
 }
 
@@ -87,10 +96,12 @@ impl geng::State for State {
                                 value
                             );
                             self.model.set(action, player.into());
+                            self.update_values();
                         }
                     }
                     geng::Key::R => {
                         self.model = Grid::new();
+                        self.update_values();
                     }
                     _ => {}
                 }
@@ -112,6 +123,7 @@ impl geng::State for State {
                             self.model.set(cell_pos, Cell::Empty);
                         }
                     }
+                    self.update_values();
                 }
             }
             _ => (),
@@ -156,6 +168,19 @@ impl geng::State for State {
         // Cells
         for pos in self.model.positions() {
             if let Some(cell) = self.model.get(pos) {
+                let value = self.values.get(pos).unwrap_or(0.0) as f32;
+                let ratio = 0.9;
+                let aabb = Aabb2::point(pos.as_f32() + vec2(0.5, 0.5))
+                    .extend_symmetric(vec2(ratio, ratio) / 2.0);
+                let mut negative = Rgba::RED;
+                negative.a = -value;
+                let mut positive = Rgba::BLUE;
+                positive.a = value;
+                let color = if value > 0.0 { positive } else { negative };
+                self.geng
+                    .draw2d()
+                    .quad(framebuffer, &self.camera, aabb, color);
+
                 match cell {
                     Cell::Empty => continue,
                     Cell::X => {
@@ -206,7 +231,19 @@ impl geng::State for State {
                             &format!("Minimax evaluation: {:.2}", -value),
                             vec2::splat(geng::TextAlign::CENTER),
                             mat3::translate(self.camera.center + vec2(0.0, -4.0))
-                                * mat3::scale_uniform(1.0),
+                                * mat3::scale_uniform(0.8),
+                            Rgba::WHITE,
+                        );
+                        self.geng.default_font().draw(
+                            framebuffer,
+                            &self.camera,
+                            &format!(
+                                "Shapley value: {:.2}",
+                                self.values.get(cell_pos).unwrap_or(0.0)
+                            ),
+                            vec2::splat(geng::TextAlign::CENTER),
+                            mat3::translate(self.camera.center + vec2(0.0, -3.0))
+                                * mat3::scale_uniform(0.8),
                             Rgba::WHITE,
                         );
                     }
