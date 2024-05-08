@@ -26,7 +26,7 @@ impl State {
 }
 
 impl geng::State for State {
-    fn update(&mut self, delta_time: f64) {
+    fn update(&mut self, _delta_time: f64) {
         self.camera.center = self.model.bounds().map(|x| x as f32).center();
     }
 
