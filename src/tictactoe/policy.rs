@@ -51,10 +51,11 @@ pub fn minimax(
             }
 
             // Recursion
-            minimax(&grid, cache, player.next(), limit, depth + 1)
+            let (action, value) = minimax(&grid, cache, player.next(), limit, depth + 1);
+            (action, -value)
         })
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .unwrap_or((vec2::ZERO, 0.0));
+        .unwrap_or((vec2(999, 999), -999.0));
     cache.insert(grid.clone(), res);
     res
 }

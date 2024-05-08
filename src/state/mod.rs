@@ -150,7 +150,6 @@ impl geng::State for State {
         }
 
         if let Some(winner) = self.model.winner() {
-            dbg!(winner);
             self.geng.default_font().draw(
                 framebuffer,
                 &self.camera,
