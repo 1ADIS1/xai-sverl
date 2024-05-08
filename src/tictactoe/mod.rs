@@ -1,14 +1,39 @@
+mod policy;
 mod shapley;
 
-use geng::prelude::*;
+pub use self::policy::*;
 
-pub type Policy = Box<dyn Fn(&Grid) -> Grid<f64>>;
+use geng::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Cell {
     Empty,
     X,
     O,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Player {
+    X,
+    O,
+}
+
+impl Player {
+    pub fn next(&self) -> Self {
+        match self {
+            Player::X => Player::O,
+            Player::O => Player::X,
+        }
+    }
+}
+
+impl From<Player> for Cell {
+    fn from(value: Player) -> Self {
+        match value {
+            Player::X => Cell::X,
+            Player::O => Cell::O,
+        }
+    }
 }
 
 pub type Coord = usize;
@@ -61,6 +86,68 @@ impl Grid<Cell> {
         {
             *target = cell;
         }
+    }
+
+    pub fn winner(&self) -> Option<Player> {
+        // horizontal
+        for row in &self.cells {
+            if *row == [Cell::X; 3] {
+                return Some(Player::X);
+            }
+            if *row == [Cell::O; 3] {
+                return Some(Player::O);
+            }
+        }
+
+        // vertical
+        for x in self.bounds().min.x..=self.bounds().max.x {
+            let mut winner_x = true;
+            let mut winner_o = true;
+            for y in self.bounds().min.y..=self.bounds().max.y {
+                if self.get(vec2(x, y)) != Some(Cell::X) {
+                    winner_x = false;
+                }
+                if self.get(vec2(x, y)) != Some(Cell::O) {
+                    winner_o = false;
+                }
+            }
+            if winner_x {
+                return Some(Player::X);
+            }
+            if winner_o {
+                return Some(Player::O);
+            }
+        }
+
+        // diagonal
+        let mut winner_main_x = true;
+        let mut winner_main_o = true;
+        let mut winner_sec_x = true;
+        let mut winner_sec_o = true;
+        for x in self.bounds().min.x..=self.bounds().max.x {
+            if self.get(vec2(x, x)) != Some(Cell::X) {
+                winner_main_x = false;
+            }
+            if self.get(vec2(x, x)) != Some(Cell::O) {
+                winner_main_o = false;
+            }
+
+            let y = self.bounds().max.y.saturating_sub(x);
+            if self.get(vec2(x, y)) != Some(Cell::X) {
+                winner_sec_x = false;
+            }
+            if self.get(vec2(x, y)) != Some(Cell::O) {
+                winner_sec_o = false;
+            }
+        }
+        if winner_main_x || winner_sec_x {
+            return Some(Player::X);
+        }
+        if winner_main_o || winner_sec_o {
+            return Some(Player::O);
+        }
+
+        None
     }
 }
 

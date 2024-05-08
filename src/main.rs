@@ -12,7 +12,8 @@ struct Opts {
 fn main() {
     let opts: Opts = clap::Parser::parse();
 
-    let timer = Timer::new();
+    let mut timer = Timer::new();
+    println!("\nRandom policy");
     let random_policy: tictactoe::Policy = Box::new(|grid: &tictactoe::Grid| {
         let options = grid.empty_positions().count();
         let prob = if options == 0 {
@@ -27,7 +28,12 @@ fn main() {
     });
     let shapley = tictactoe::Grid::new().shapley(&random_policy);
     println!("{:?}", shapley);
-    println!("calc took {}ms", timer.elapsed().as_secs_f64() * 1000.0);
+    println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+
+    println!("\nMinimaxpolicy");
+    let shapley = tictactoe::Grid::new().shapley(&tictactoe::policy_minimax(None));
+    println!("{:?}", shapley);
+    println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
     // return;
 
     logger::init();
