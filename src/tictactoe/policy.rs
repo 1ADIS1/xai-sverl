@@ -44,7 +44,15 @@ pub fn minimax(
     limit: Option<usize>,
     depth: usize,
 ) -> (Action, f64) {
+    // log::debug!(
+    //     "[depth {}] minimax for player {:?} at {:?}",
+    //     depth,
+    //     player,
+    //     grid
+    // );
+
     if let Some(cached) = cache.get(grid) {
+        // log::debug!("[depth {}] cached: {:?}", depth, cached);
         return *cached;
     }
 
@@ -54,19 +62,23 @@ pub fn minimax(
             let mut grid = grid.clone();
             grid.set(action, player.into());
 
+            // log::debug!("[depth {}] evaluating move {:?}", depth, action);
+
             let value = evaluate(&grid, player);
             if value != 0.0 || limit.map_or(false, |limit| depth >= limit) {
                 // Game finished
-                return (action, value);
+                // log::debug!("[depth {}] game ended {:.2}", depth, value);
+                return (action, value / (depth + 1) as f64);
             }
 
             // Recursion
-            let (action, value) = minimax(&grid, cache, player.next(), limit, depth + 1);
+            let (_, value) = minimax(&grid, cache, player.next(), limit, depth + 1);
             (action, -value)
         })
         .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap())
-        .unwrap_or((vec2(999, 999), -999.0));
+        .unwrap_or((vec2(999, 999), 0.0));
     cache.insert(grid.clone(), res);
+    // log::debug!("[depth {}] result: {:?}", depth, res);
     res
 }
 
