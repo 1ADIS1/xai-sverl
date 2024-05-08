@@ -5,14 +5,14 @@ pub use self::policy::*;
 
 use geng::prelude::*;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Cell {
     Empty,
     X,
     O,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum Player {
     X,
     O,
@@ -38,7 +38,7 @@ impl From<Player> for Cell {
 
 pub type Coord = usize;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Grid<T = Cell> {
     pub cells: [[T; 3]; 3],
 }
