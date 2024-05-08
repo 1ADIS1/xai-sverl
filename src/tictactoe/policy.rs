@@ -5,6 +5,21 @@ use super::*;
 pub type Policy = Box<dyn Fn(&Grid) -> Grid<f64>>;
 pub type Action = vec2<Coord>;
 
+pub fn policy_random() -> Policy {
+    Box::new(|grid: &Grid| {
+        let options = grid.empty_positions().count();
+        let prob = if options == 0 {
+            0.0
+        } else {
+            (options as f64).recip()
+        };
+        Grid::from_fn(|pos| match grid.get(pos) {
+            Some(Cell::Empty) => prob,
+            _ => 0.0,
+        })
+    })
+}
+
 pub fn policy_minimax(depth: Option<usize>) -> Policy {
     Box::new(move |grid| {
         let (action, _) = minimax(grid, &mut BTreeMap::new(), Player::X, depth, 0);

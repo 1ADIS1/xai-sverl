@@ -5,36 +5,39 @@ use geng::prelude::*;
 
 #[derive(clap::Parser)]
 struct Opts {
+    #[clap(subcommand)]
+    command: Option<Command>,
     #[clap(flatten)]
     geng: geng::CliArgs,
+}
+
+#[derive(clap::Subcommand)]
+enum Command {
+    Test,
 }
 
 fn main() {
     let opts: Opts = clap::Parser::parse();
 
-    let mut timer = Timer::new();
-    println!("\nRandom policy");
-    let random_policy: tictactoe::Policy = Box::new(|grid: &tictactoe::Grid| {
-        let options = grid.empty_positions().count();
-        let prob = if options == 0 {
-            0.0
-        } else {
-            (options as f64).recip()
-        };
-        tictactoe::Grid::from_fn(|pos| match grid.get(pos) {
-            Some(tictactoe::Cell::Empty) => prob,
-            _ => 0.0,
-        })
-    });
-    let shapley = tictactoe::Grid::new().shapley(&random_policy);
-    println!("{:?}", shapley);
-    println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+    if let Some(command) = &opts.command {
+        match command {
+            Command::Test => {
+                println!("\nRandom policy");
+                let mut timer = Timer::new();
+                let shapley = tictactoe::Grid::new().shapley(&tictactoe::policy_random());
+                println!("{:?}", shapley);
+                println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
-    println!("\nMinimaxpolicy");
-    let shapley = tictactoe::Grid::new().shapley(&tictactoe::policy_minimax(None));
-    println!("{:?}", shapley);
-    println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
-    // return;
+                println!("\nMinimax policy");
+                let mut timer = Timer::new();
+                let shapley = tictactoe::Grid::new().shapley(&tictactoe::policy_minimax(None));
+                println!("{:?}", shapley);
+                println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+
+                return;
+            }
+        }
+    }
 
     logger::init();
     geng::setup_panic_handler();
