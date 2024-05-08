@@ -26,7 +26,7 @@ impl Grid<Cell> {
             .collect()
     }
 
-    pub fn shapley(&self, policy: &Policy) -> Grid<f64> {
+    pub fn shapley(&self, policy: &mut Policy) -> Grid<f64> {
         let base_observation = self.full_observation();
         let base_value = base_observation.value(policy);
         let subsets = self.all_subsets();
@@ -75,7 +75,7 @@ impl Observation {
             .collect()
     }
 
-    pub fn value(&self, policy: &Policy) -> Grid<f64> {
+    pub fn value(&self, policy: &mut Policy) -> Grid<f64> {
         let states = self.possible_states();
         let prob = (states.len() as f64).recip();
 

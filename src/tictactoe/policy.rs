@@ -2,10 +2,10 @@ use std::collections::BTreeMap;
 
 use super::*;
 
-pub type Policy = Box<dyn Fn(&Grid) -> Grid<f64>>;
+pub type Policy<'a> = Box<dyn FnMut(&Grid) -> Grid<f64> + 'a>;
 pub type Action = vec2<Coord>;
 
-pub fn policy_random() -> Policy {
+pub fn policy_random() -> Policy<'static> {
     Box::new(|grid: &Grid| {
         let options = grid.empty_positions().count();
         let prob = if options == 0 {
@@ -20,9 +20,19 @@ pub fn policy_random() -> Policy {
     })
 }
 
-pub fn policy_minimax(depth: Option<usize>) -> Policy {
+// pub fn policy_minimax(depth: Option<usize>) -> Policy<'static> {
+//     Box::new(move |grid| {
+//         let (action, _) = minimax(grid, &mut BTreeMap::new(), Player::X, depth, 0);
+//         Grid::from_fn(|pos| if pos == action { 1.0 } else { 0.0 })
+//     })
+// }
+
+pub fn policy_minimax_cached(
+    depth: Option<usize>,
+    cache: &mut BTreeMap<Grid, (Action, f64)>,
+) -> Policy<'_> {
     Box::new(move |grid| {
-        let (action, _) = minimax(grid, &mut BTreeMap::new(), Player::X, depth, 0);
+        let (action, _) = minimax(grid, cache, Player::X, depth, 0);
         Grid::from_fn(|pos| if pos == action { 1.0 } else { 0.0 })
     })
 }
