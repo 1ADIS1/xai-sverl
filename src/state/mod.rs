@@ -1,5 +1,7 @@
 use crate::tictactoe::{Cell, *};
 
+use std::collections::BTreeMap;
+
 use geng::prelude::*;
 use geng_utils::conversions::Vec2RealConversions;
 
@@ -8,6 +10,7 @@ pub struct State {
     framebuffer_size: vec2<usize>,
     camera: Camera2d,
     model: Grid,
+    minimax_cache: BTreeMap<Grid, (Action, f64)>,
 }
 
 impl State {
@@ -21,6 +24,7 @@ impl State {
                 fov: 10.0,
             },
             model: Grid::new(),
+            minimax_cache: BTreeMap::new(),
         }
     }
 }
@@ -31,24 +35,38 @@ impl geng::State for State {
     }
 
     fn handle_event(&mut self, event: geng::Event) {
-        if let geng::Event::MousePress { button } = event {
-            if let Some(mouse_pos) = self.geng.window().cursor_position() {
-                let mouse_pos = self
-                    .camera
-                    .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
-                let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                match button {
-                    geng::MouseButton::Left => {
-                        self.model.set(cell_pos, Cell::X);
-                    }
-                    geng::MouseButton::Right => {
-                        self.model.set(cell_pos, Cell::O);
-                    }
-                    geng::MouseButton::Middle => {
-                        self.model.set(cell_pos, Cell::Empty);
+        match event {
+            geng::Event::KeyPress {
+                key: geng::Key::Space,
+            } => {
+                // AI move
+                if let Some(player) = self.model.current_player() {
+                    let (action, value) =
+                        minimax(&self.model, &mut self.minimax_cache, player, None, 0);
+                    log::debug!("minimax chose action {:?} with value {:.2}", action, value);
+                    self.model.set(action, player.into());
+                }
+            }
+            geng::Event::MousePress { button } => {
+                if let Some(mouse_pos) = self.geng.window().cursor_position() {
+                    let mouse_pos = self
+                        .camera
+                        .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
+                    let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
+                    match button {
+                        geng::MouseButton::Left => {
+                            self.model.set(cell_pos, Cell::X);
+                        }
+                        geng::MouseButton::Right => {
+                            self.model.set(cell_pos, Cell::O);
+                        }
+                        geng::MouseButton::Middle => {
+                            self.model.set(cell_pos, Cell::Empty);
+                        }
                     }
                 }
             }
+            _ => (),
         }
     }
 
@@ -129,6 +147,18 @@ impl geng::State for State {
                     }
                 }
             }
+        }
+
+        if let Some(winner) = self.model.winner() {
+            dbg!(winner);
+            self.geng.default_font().draw(
+                framebuffer,
+                &self.camera,
+                &format!("Winner {:?}", winner),
+                vec2::splat(geng::TextAlign::CENTER),
+                mat3::translate(self.camera.center + vec2(0.0, -4.0)) * mat3::scale_uniform(1.0),
+                Rgba::WHITE,
+            );
         }
     }
 }

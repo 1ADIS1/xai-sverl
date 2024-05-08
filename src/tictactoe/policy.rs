@@ -27,7 +27,7 @@ pub fn policy_minimax(depth: Option<usize>) -> Policy {
     })
 }
 
-fn minimax(
+pub fn minimax(
     grid: &Grid,
     cache: &mut BTreeMap<Grid, (Action, f64)>,
     player: Player,

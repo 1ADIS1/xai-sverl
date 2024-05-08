@@ -88,6 +88,28 @@ impl Grid<Cell> {
         }
     }
 
+    pub fn current_player(&self) -> Option<Player> {
+        if self.winner().is_some() {
+            return None;
+        }
+
+        let mut count_x = 0;
+        let mut count_o = 0;
+        for pos in self.positions() {
+            match self.get(pos) {
+                Some(Cell::X) => count_x += 1,
+                Some(Cell::O) => count_o += 1,
+                _ => {}
+            }
+        }
+
+        if count_x > count_o {
+            Some(Player::O)
+        } else {
+            Some(Player::X)
+        }
+    }
+
     pub fn winner(&self) -> Option<Player> {
         // horizontal
         for row in &self.cells {
@@ -100,10 +122,10 @@ impl Grid<Cell> {
         }
 
         // vertical
-        for x in self.bounds().min.x..=self.bounds().max.x {
+        for x in self.bounds().min.x..self.bounds().max.x {
             let mut winner_x = true;
             let mut winner_o = true;
-            for y in self.bounds().min.y..=self.bounds().max.y {
+            for y in self.bounds().min.y..self.bounds().max.y {
                 if self.get(vec2(x, y)) != Some(Cell::X) {
                     winner_x = false;
                 }
@@ -124,7 +146,7 @@ impl Grid<Cell> {
         let mut winner_main_o = true;
         let mut winner_sec_x = true;
         let mut winner_sec_o = true;
-        for x in self.bounds().min.x..=self.bounds().max.x {
+        for x in self.bounds().min.x..self.bounds().max.x {
             if self.get(vec2(x, x)) != Some(Cell::X) {
                 winner_main_x = false;
             }
@@ -132,7 +154,7 @@ impl Grid<Cell> {
                 winner_main_o = false;
             }
 
-            let y = self.bounds().max.y.saturating_sub(x);
+            let y = self.bounds().max.y.saturating_sub(x).saturating_sub(1);
             if self.get(vec2(x, y)) != Some(Cell::X) {
                 winner_sec_x = false;
             }
