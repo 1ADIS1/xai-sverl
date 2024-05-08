@@ -27,6 +27,44 @@ impl State {
             minimax_cache: BTreeMap::new(),
         }
     }
+
+    fn draw_x(&self, pos: vec2<usize>, transparency: f32, framebuffer: &mut ugli::Framebuffer) {
+        let ratio = 0.8;
+        let aabb =
+            Aabb2::point(pos.as_f32() + vec2(0.5, 0.5)).extend_symmetric(vec2(ratio, ratio) / 2.0);
+
+        let mut color = Rgba::RED;
+        color.a *= transparency;
+        self.geng.draw2d().draw2d(
+            framebuffer,
+            &self.camera,
+            &draw2d::Segment::new(Segment(aabb.bottom_left(), aabb.top_right()), 0.1, color),
+        );
+        self.geng.draw2d().draw2d(
+            framebuffer,
+            &self.camera,
+            &draw2d::Segment::new(Segment(aabb.top_left(), aabb.bottom_right()), 0.1, color),
+        );
+    }
+
+    fn draw_o(&self, pos: vec2<usize>, transparency: f32, framebuffer: &mut ugli::Framebuffer) {
+        let ratio = 0.8;
+        let aabb =
+            Aabb2::point(pos.as_f32() + vec2(0.5, 0.5)).extend_symmetric(vec2(ratio, ratio) / 2.0);
+
+        let mut color = Rgba::CYAN;
+        color.a *= transparency;
+        self.geng.draw2d().draw2d(
+            framebuffer,
+            &self.camera,
+            &draw2d::Ellipse::circle_with_cut(
+                aabb.center(),
+                aabb.width() / 2.0 * ratio * 0.9,
+                aabb.width() / 2.0 * ratio,
+                color,
+            ),
+        );
+    }
 }
 
 impl geng::State for State {
@@ -118,42 +156,13 @@ impl geng::State for State {
         // Cells
         for pos in self.model.positions() {
             if let Some(cell) = self.model.get(pos) {
-                let ratio = 0.8;
-                let aabb = Aabb2::point(pos.as_f32() + vec2(0.5, 0.5))
-                    .extend_symmetric(vec2(ratio, ratio) / 2.0);
                 match cell {
                     Cell::Empty => continue,
                     Cell::X => {
-                        self.geng.draw2d().draw2d(
-                            framebuffer,
-                            &self.camera,
-                            &draw2d::Segment::new(
-                                Segment(aabb.bottom_left(), aabb.top_right()),
-                                0.1,
-                                Rgba::RED,
-                            ),
-                        );
-                        self.geng.draw2d().draw2d(
-                            framebuffer,
-                            &self.camera,
-                            &draw2d::Segment::new(
-                                Segment(aabb.top_left(), aabb.bottom_right()),
-                                0.1,
-                                Rgba::RED,
-                            ),
-                        );
+                        self.draw_x(pos, 1.0, framebuffer);
                     }
                     Cell::O => {
-                        self.geng.draw2d().draw2d(
-                            framebuffer,
-                            &self.camera,
-                            &draw2d::Ellipse::circle_with_cut(
-                                aabb.center(),
-                                aabb.width() / 2.0 * ratio * 0.9,
-                                aabb.width() / 2.0 * ratio,
-                                Rgba::CYAN,
-                            ),
-                        );
+                        self.draw_o(pos, 1.0, framebuffer);
                     }
                 }
             }
@@ -168,6 +177,41 @@ impl geng::State for State {
                 mat3::translate(self.camera.center + vec2(0.0, -4.0)) * mat3::scale_uniform(1.0),
                 Rgba::WHITE,
             );
+        } else {
+            // Display minimax evaluation
+            if let Some(mouse_pos) = self.geng.window().cursor_position() {
+                let mouse_pos = self
+                    .camera
+                    .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
+                let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
+                if let Some(Cell::Empty) = self.model.get(cell_pos) {
+                    let mut grid = self.model.clone();
+                    if let Some(player) = grid.current_player() {
+                        grid.set(cell_pos, player.into());
+                        let (action, value) =
+                            minimax(&grid, &mut self.minimax_cache, player.next(), None, 0);
+
+                        match player {
+                            Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
+                            Player::O => self.draw_o(cell_pos, 0.5, framebuffer),
+                        }
+                        match player.next() {
+                            Player::X => self.draw_x(action, 0.25, framebuffer),
+                            Player::O => self.draw_o(action, 0.25, framebuffer),
+                        }
+
+                        self.geng.default_font().draw(
+                            framebuffer,
+                            &self.camera,
+                            &format!("Minimax evaluation: {:.2}", -value),
+                            vec2::splat(geng::TextAlign::CENTER),
+                            mat3::translate(self.camera.center + vec2(0.0, -4.0))
+                                * mat3::scale_uniform(1.0),
+                            Rgba::WHITE,
+                        );
+                    }
+                }
+            }
         }
     }
 }
