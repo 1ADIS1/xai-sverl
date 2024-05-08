@@ -30,19 +30,18 @@ impl Grid<Cell> {
         let base_observation = self.full_observation();
         let base_value = base_observation.value(policy);
         let subsets = self.all_subsets();
-        let scale = (subsets.len() as f64).recip();
+        let n = base_observation.positions.len();
+        let scale = (factorial(n) as f64).recip();
 
         let mut result = subsets
             .into_iter()
             .map(|observation| {
+                let s = observation.positions.len();
                 let mut value = observation.value(policy) - base_value.clone();
-                value *= factorial(observation.positions.len()) as f64
-                    * factorial(base_observation.positions.len() - observation.positions.len() - 1)
-                        as f64;
+                value *= factorial(s) as f64 * factorial(n - s - 1) as f64;
                 value
             })
             .fold(Grid::zero(), Grid::add);
-
         result *= scale;
         result
     }
