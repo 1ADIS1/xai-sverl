@@ -36,15 +36,25 @@ impl geng::State for State {
 
     fn handle_event(&mut self, event: geng::Event) {
         match event {
-            geng::Event::KeyPress {
-                key: geng::Key::Space,
-            } => {
-                // AI move
-                if let Some(player) = self.model.current_player() {
-                    let (action, value) =
-                        minimax(&self.model, &mut self.minimax_cache, player, None, 0);
-                    log::debug!("minimax chose action {:?} with value {:.2}", action, value);
-                    self.model.set(action, player.into());
+            geng::Event::KeyPress { key } => {
+                match key {
+                    geng::Key::Space => {
+                        // AI move
+                        if let Some(player) = self.model.current_player() {
+                            let (action, value) =
+                                minimax(&self.model, &mut self.minimax_cache, player, None, 0);
+                            log::debug!(
+                                "minimax chose action {:?} with value {:.2}",
+                                action,
+                                value
+                            );
+                            self.model.set(action, player.into());
+                        }
+                    }
+                    geng::Key::R => {
+                        self.model = Grid::new();
+                    }
+                    _ => {}
                 }
             }
             geng::Event::MousePress { button } => {
