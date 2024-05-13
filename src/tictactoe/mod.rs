@@ -45,7 +45,7 @@ pub struct Grid<T = Tile> {
 }
 
 impl<T> Grid<T> {
-    pub fn from_fn(f: impl Fn(vec2<Coord>) -> T) -> Self {
+    pub fn from_fn(mut f: impl FnMut(vec2<Coord>) -> T) -> Self {
         Self {
             cells: std::array::from_fn(|y| std::array::from_fn(|x| f(vec2(x, y)))),
         }
@@ -68,14 +68,11 @@ impl<T> Grid<T> {
             *target = value;
         }
     }
-}
 
-impl<T: Copy> Grid<T> {
-    pub fn get(&self, position: vec2<Coord>) -> Option<T> {
+    pub fn get(&self, position: vec2<Coord>) -> Option<&T> {
         self.cells
             .get(position.y)
             .and_then(|row| row.get(position.x))
-            .copied()
     }
 }
 
@@ -84,6 +81,11 @@ impl Grid<Tile> {
         Self {
             cells: [[Tile::Empty; 3]; 3],
         }
+    }
+
+    pub fn check(&self, pos: vec2<Coord>) -> bool {
+        self.get(pos)
+            .map_or(false, |tile| matches!(tile, Tile::Empty))
     }
 
     pub fn empty_positions(&self) -> impl Iterator<Item = vec2<Coord>> + '_ {
@@ -129,10 +131,10 @@ impl Grid<Tile> {
             let mut winner_x = true;
             let mut winner_o = true;
             for y in self.bounds().min.y..self.bounds().max.y {
-                if self.get(vec2(x, y)) != Some(Tile::X) {
+                if self.get(vec2(x, y)) != Some(&Tile::X) {
                     winner_x = false;
                 }
-                if self.get(vec2(x, y)) != Some(Tile::O) {
+                if self.get(vec2(x, y)) != Some(&Tile::O) {
                     winner_o = false;
                 }
             }
@@ -150,18 +152,18 @@ impl Grid<Tile> {
         let mut winner_sec_x = true;
         let mut winner_sec_o = true;
         for x in self.bounds().min.x..self.bounds().max.x {
-            if self.get(vec2(x, x)) != Some(Tile::X) {
+            if self.get(vec2(x, x)) != Some(&Tile::X) {
                 winner_main_x = false;
             }
-            if self.get(vec2(x, x)) != Some(Tile::O) {
+            if self.get(vec2(x, x)) != Some(&Tile::O) {
                 winner_main_o = false;
             }
 
             let y = self.bounds().max.y.saturating_sub(x).saturating_sub(1);
-            if self.get(vec2(x, y)) != Some(Tile::X) {
+            if self.get(vec2(x, y)) != Some(&Tile::X) {
                 winner_sec_x = false;
             }
-            if self.get(vec2(x, y)) != Some(Tile::O) {
+            if self.get(vec2(x, y)) != Some(&Tile::O) {
                 winner_sec_o = false;
             }
         }
@@ -194,6 +196,14 @@ impl Grid<f64> {
         Self {
             cells: [[0.0; 3]; 3],
         }
+    }
+
+    pub fn normalize(&self) -> Self {
+        let sum: f64 = self.cells.iter().flatten().copied().sum();
+        if sum == 0.0 {
+            return self.clone();
+        }
+        Self::from_fn(|pos| *self.get(pos).unwrap() / sum)
     }
 }
 

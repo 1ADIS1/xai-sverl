@@ -26,35 +26,52 @@ impl Grid<Tile> {
             .collect()
     }
 
-    pub fn shapley(&self, policy: &mut Policy) -> Grid<f64> {
+    pub fn shapley(&self, policy: &mut Policy) -> Grid<Grid<f64>> {
         self.shapley_with_value(|observation| observation.value(policy))
     }
 
     pub fn shapley_with_value(
         &self,
         mut value: impl FnMut(&Observation) -> Grid<f64>,
-    ) -> Grid<f64> {
-        let base_observation = self.full_observation();
-        let base_value = value(&base_observation);
+    ) -> Grid<Grid<f64>> {
         let subsets = self.all_subsets();
-        let n = base_observation.positions.len();
+        let n = self.positions().count();
         let scale = (factorial(n) as f64).recip();
 
-        let mut result = subsets
-            .iter()
-            .map(|observation| {
-                let s = observation.positions.len();
-                let mut value = value(observation) - base_value.clone();
-                value *= factorial(s) as f64 * factorial(n - s - 1) as f64;
-                value
-            })
-            .fold(Grid::zero(), Grid::add);
-        result *= scale;
-        result
+        Grid::from_fn(|pos| {
+            let mut result = subsets
+                .iter()
+                .cloned()
+                .map(|observation| {
+                    let base_value = value(&observation);
+                    let s = observation.positions.len();
+
+                    let mut featureless = observation.clone();
+                    if !featureless.subtract(pos) {
+                        return Grid::zero();
+                    }
+
+                    let mut value = base_value - value(&featureless);
+                    value *= factorial(s) as f64 * factorial(n - s - 1) as f64;
+                    value
+                })
+                .fold(Grid::zero(), Grid::add);
+            result *= scale;
+            result
+        })
     }
 }
 
 impl Observation {
+    pub fn subtract(&mut self, pos: vec2<Coord>) -> bool {
+        if let Some(i) = self.positions.iter().position(|&p| p == pos) {
+            self.positions.swap_remove(i);
+            true
+        } else {
+            false
+        }
+    }
+
     pub fn possible_states(&self) -> Vec<Grid> {
         let hidden: Vec<_> = self
             .grid
