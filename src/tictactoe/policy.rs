@@ -14,7 +14,7 @@ pub fn policy_random() -> Policy<'static> {
             (options as f64).recip()
         };
         Grid::from_fn(|pos| match grid.get(pos) {
-            Some(Cell::Empty) => prob,
+            Some(Tile::Empty) => prob,
             _ => 0.0,
         })
     })
@@ -64,7 +64,7 @@ pub fn minimax(
 
             // log::debug!("[depth {}] evaluating move {:?}", depth, action);
 
-            let value = evaluate(&grid, player);
+            let value = grid.reward(player);
             if value != 0.0 || limit.map_or(false, |limit| depth >= limit) {
                 // Game finished
                 // log::debug!("[depth {}] game ended {:.2}", depth, value);
@@ -80,17 +80,4 @@ pub fn minimax(
     cache.insert(grid.clone(), res);
     // log::debug!("[depth {}] result: {:?}", depth, res);
     res
-}
-
-fn evaluate(grid: &Grid, player: Player) -> f64 {
-    match grid.winner() {
-        None => 0.0,
-        Some(winner) => {
-            if winner == player {
-                1.0
-            } else {
-                -1.0
-            }
-        }
-    }
 }

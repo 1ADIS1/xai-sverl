@@ -24,8 +24,13 @@ fn main() {
             Command::Test => {
                 println!("\nRandom policy");
                 let mut timer = Timer::new();
-                let shapley = tictactoe::Grid::new().shapley(&mut tictactoe::policy_random());
-                println!("{:?}", shapley);
+                let mut policy = tictactoe::policy_random();
+                let shapley = tictactoe::Grid::new().shapley(&mut policy);
+                println!("shapley: {:?}", shapley);
+                println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+
+                let sverl = tictactoe::Grid::new().sverl_local(0.5, &mut policy);
+                println!("sverl: {:?}", sverl);
                 println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
                 println!("\nMinimax policy");
@@ -33,7 +38,11 @@ fn main() {
                 let mut cache = std::collections::BTreeMap::new();
                 let mut policy = tictactoe::policy_minimax_cached(None, &mut cache);
                 let shapley = tictactoe::Grid::new().shapley(&mut policy);
-                println!("{:?}", shapley);
+                println!("shapley: {:?}", shapley);
+                println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+
+                let sverl = tictactoe::Grid::new().sverl_local(0.5, &mut policy);
+                println!("sverl: {:?}", sverl);
                 println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
                 return;

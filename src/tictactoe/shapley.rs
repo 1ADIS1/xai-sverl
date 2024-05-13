@@ -6,7 +6,7 @@ pub struct Observation {
     pub grid: Grid,
 }
 
-impl Grid<Cell> {
+impl Grid<Tile> {
     pub fn full_observation(&self) -> Observation {
         Observation {
             positions: self.positions().collect(),
@@ -27,17 +27,24 @@ impl Grid<Cell> {
     }
 
     pub fn shapley(&self, policy: &mut Policy) -> Grid<f64> {
+        self.shapley_with_value(|observation| observation.value(policy))
+    }
+
+    pub fn shapley_with_value(
+        &self,
+        mut value: impl FnMut(&Observation) -> Grid<f64>,
+    ) -> Grid<f64> {
         let base_observation = self.full_observation();
-        let base_value = base_observation.value(policy);
+        let base_value = value(&base_observation);
         let subsets = self.all_subsets();
         let n = base_observation.positions.len();
         let scale = (factorial(n) as f64).recip();
 
         let mut result = subsets
-            .into_iter()
+            .iter()
             .map(|observation| {
                 let s = observation.positions.len();
-                let mut value = observation.value(policy) - base_value.clone();
+                let mut value = value(observation) - base_value.clone();
                 value *= factorial(s) as f64 * factorial(n - s - 1) as f64;
                 value
             })
@@ -60,9 +67,9 @@ impl Observation {
                 let mut grid = self.grid.clone();
                 for (pos, cell) in hidden.iter().enumerate().map(|(t, &pos)| {
                     let cell = match (i / 3_usize.pow(t as u32)) % 3 {
-                        0 => Cell::Empty,
-                        1 => Cell::X,
-                        2 => Cell::O,
+                        0 => Tile::Empty,
+                        1 => Tile::X,
+                        2 => Tile::O,
                         _ => unreachable!(),
                     };
                     (pos, cell)

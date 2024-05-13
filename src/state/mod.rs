@@ -1,4 +1,4 @@
-use crate::tictactoe::{Cell, *};
+use crate::tictactoe::{Tile, *};
 
 use std::collections::BTreeMap;
 
@@ -72,7 +72,8 @@ impl State {
 
     fn update_values(&mut self) {
         let mut policy = policy_minimax_cached(None, &mut self.minimax_cache);
-        self.values = self.model.shapley(&mut policy);
+        // self.values = self.model.shapley(&mut policy);
+        self.values = self.model.sverl_local(0.5, &mut policy);
     }
 }
 
@@ -114,13 +115,13 @@ impl geng::State for State {
                     let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
                     match button {
                         geng::MouseButton::Left => {
-                            self.model.set(cell_pos, Cell::X);
+                            self.model.set(cell_pos, Tile::X);
                         }
                         geng::MouseButton::Right => {
-                            self.model.set(cell_pos, Cell::O);
+                            self.model.set(cell_pos, Tile::O);
                         }
                         geng::MouseButton::Middle => {
-                            self.model.set(cell_pos, Cell::Empty);
+                            self.model.set(cell_pos, Tile::Empty);
                         }
                     }
                     self.update_values();
@@ -182,11 +183,11 @@ impl geng::State for State {
                     .quad(framebuffer, &self.camera, aabb, color);
 
                 match cell {
-                    Cell::Empty => continue,
-                    Cell::X => {
+                    Tile::Empty => continue,
+                    Tile::X => {
                         self.draw_x(pos, 1.0, framebuffer);
                     }
-                    Cell::O => {
+                    Tile::O => {
                         self.draw_o(pos, 1.0, framebuffer);
                     }
                 }
@@ -209,7 +210,7 @@ impl geng::State for State {
                     .camera
                     .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
                 let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                if let Some(Cell::Empty) = self.model.get(cell_pos) {
+                if let Some(Tile::Empty) = self.model.get(cell_pos) {
                     let mut grid = self.model.clone();
                     if let Some(player) = grid.current_player() {
                         grid.set(cell_pos, player.into());
@@ -238,7 +239,7 @@ impl geng::State for State {
                             framebuffer,
                             &self.camera,
                             &format!(
-                                "Shapley value: {:.2}",
+                                "SVERL-P value: {:.2}",
                                 self.values.get(cell_pos).unwrap_or(0.0)
                             ),
                             vec2::splat(geng::TextAlign::CENTER),

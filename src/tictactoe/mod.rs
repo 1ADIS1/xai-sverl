@@ -1,12 +1,13 @@
 mod policy;
 mod shapley;
+mod sverl;
 
 pub use self::policy::*;
 
 use geng::prelude::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub enum Cell {
+pub enum Tile {
     Empty,
     X,
     O,
@@ -27,11 +28,11 @@ impl Player {
     }
 }
 
-impl From<Player> for Cell {
+impl From<Player> for Tile {
     fn from(value: Player) -> Self {
         match value {
-            Player::X => Cell::X,
-            Player::O => Cell::O,
+            Player::X => Tile::X,
+            Player::O => Tile::O,
         }
     }
 }
@@ -39,7 +40,7 @@ impl From<Player> for Cell {
 pub type Coord = usize;
 
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Grid<T = Cell> {
+pub struct Grid<T = Tile> {
     pub cells: [[T; 3]; 3],
 }
 
@@ -47,6 +48,24 @@ impl<T> Grid<T> {
     pub fn from_fn(f: impl Fn(vec2<Coord>) -> T) -> Self {
         Self {
             cells: std::array::from_fn(|y| std::array::from_fn(|x| f(vec2(x, y)))),
+        }
+    }
+
+    pub fn bounds(&self) -> Aabb2<Coord> {
+        Aabb2::ZERO.extend_positive(vec2(self.cells[0].len(), self.cells.len()))
+    }
+
+    pub fn positions(&self) -> impl Iterator<Item = vec2<Coord>> + '_ {
+        self.bounds().points()
+    }
+
+    pub fn set(&mut self, position: vec2<Coord>, value: T) {
+        if let Some(target) = self
+            .cells
+            .get_mut(position.y)
+            .and_then(|row| row.get_mut(position.x))
+        {
+            *target = value;
         }
     }
 }
@@ -60,34 +79,16 @@ impl<T: Copy> Grid<T> {
     }
 }
 
-impl Grid<Cell> {
+impl Grid<Tile> {
     pub fn new() -> Self {
         Self {
-            cells: [[Cell::Empty; 3]; 3],
+            cells: [[Tile::Empty; 3]; 3],
         }
-    }
-
-    pub fn bounds(&self) -> Aabb2<Coord> {
-        Aabb2::ZERO.extend_positive(vec2(self.cells[0].len(), self.cells.len()))
-    }
-
-    pub fn positions(&self) -> impl Iterator<Item = vec2<Coord>> + '_ {
-        self.bounds().points()
     }
 
     pub fn empty_positions(&self) -> impl Iterator<Item = vec2<Coord>> + '_ {
         self.positions()
-            .filter(|&pos| matches!(self.get(pos), Some(Cell::Empty)))
-    }
-
-    pub fn set(&mut self, position: vec2<Coord>, cell: Cell) {
-        if let Some(target) = self
-            .cells
-            .get_mut(position.y)
-            .and_then(|row| row.get_mut(position.x))
-        {
-            *target = cell;
-        }
+            .filter(|&pos| matches!(self.get(pos), Some(Tile::Empty)))
     }
 
     pub fn current_player(&self) -> Option<Player> {
@@ -99,8 +100,8 @@ impl Grid<Cell> {
         let mut count_o = 0;
         for pos in self.positions() {
             match self.get(pos) {
-                Some(Cell::X) => count_x += 1,
-                Some(Cell::O) => count_o += 1,
+                Some(Tile::X) => count_x += 1,
+                Some(Tile::O) => count_o += 1,
                 _ => {}
             }
         }
@@ -115,10 +116,10 @@ impl Grid<Cell> {
     pub fn winner(&self) -> Option<Player> {
         // horizontal
         for row in &self.cells {
-            if *row == [Cell::X; 3] {
+            if *row == [Tile::X; 3] {
                 return Some(Player::X);
             }
-            if *row == [Cell::O; 3] {
+            if *row == [Tile::O; 3] {
                 return Some(Player::O);
             }
         }
@@ -128,10 +129,10 @@ impl Grid<Cell> {
             let mut winner_x = true;
             let mut winner_o = true;
             for y in self.bounds().min.y..self.bounds().max.y {
-                if self.get(vec2(x, y)) != Some(Cell::X) {
+                if self.get(vec2(x, y)) != Some(Tile::X) {
                     winner_x = false;
                 }
-                if self.get(vec2(x, y)) != Some(Cell::O) {
+                if self.get(vec2(x, y)) != Some(Tile::O) {
                     winner_o = false;
                 }
             }
@@ -149,18 +150,18 @@ impl Grid<Cell> {
         let mut winner_sec_x = true;
         let mut winner_sec_o = true;
         for x in self.bounds().min.x..self.bounds().max.x {
-            if self.get(vec2(x, x)) != Some(Cell::X) {
+            if self.get(vec2(x, x)) != Some(Tile::X) {
                 winner_main_x = false;
             }
-            if self.get(vec2(x, x)) != Some(Cell::O) {
+            if self.get(vec2(x, x)) != Some(Tile::O) {
                 winner_main_o = false;
             }
 
             let y = self.bounds().max.y.saturating_sub(x).saturating_sub(1);
-            if self.get(vec2(x, y)) != Some(Cell::X) {
+            if self.get(vec2(x, y)) != Some(Tile::X) {
                 winner_sec_x = false;
             }
-            if self.get(vec2(x, y)) != Some(Cell::O) {
+            if self.get(vec2(x, y)) != Some(Tile::O) {
                 winner_sec_o = false;
             }
         }
@@ -172,6 +173,19 @@ impl Grid<Cell> {
         }
 
         None
+    }
+
+    pub fn reward(&self, player: Player) -> f64 {
+        match self.winner() {
+            None => 0.0,
+            Some(winner) => {
+                if winner == player {
+                    1.0
+                } else {
+                    -1.0
+                }
+            }
+        }
     }
 }
 
@@ -203,6 +217,15 @@ impl MulAssign<f64> for Grid<f64> {
     fn mul_assign(&mut self, rhs: f64) {
         for cell in self.cells.iter_mut().flatten() {
             *cell *= rhs
+        }
+    }
+}
+
+impl MulAssign<Self> for Grid<f64> {
+    fn mul_assign(&mut self, rhs: Self) {
+        for pos in self.positions().collect::<Vec<_>>() {
+            let value = self.get(pos).unwrap() * rhs.get(pos).unwrap();
+            self.set(pos, value);
         }
     }
 }
