@@ -11,7 +11,8 @@ pub struct State {
     camera: Camera2d,
     model: Grid,
     minimax_cache: BTreeMap<Grid, Grid<f64>>,
-    values: Grid<Grid<f64>>,
+    shapley_values: Grid<Grid<f64>>,
+    sverl_values: Grid<f64>,
 }
 
 impl State {
@@ -26,7 +27,8 @@ impl State {
             },
             model: Grid::new(),
             minimax_cache: BTreeMap::new(),
-            values: Grid::from_fn(|_| Grid::zero()),
+            shapley_values: Grid::from_fn(|_| Grid::zero()),
+            sverl_values: Grid::zero(),
         };
         state.update_values();
         state
@@ -72,8 +74,8 @@ impl State {
 
     fn update_values(&mut self) {
         let mut policy = policy_minimax_cached(None, &mut self.minimax_cache);
-        self.values = self.model.shapley(&mut policy);
-        // self.values = self.model.sverl_local(0.5, &mut policy);
+        self.shapley_values = self.model.shapley(&mut policy);
+        self.sverl_values = self.model.sverl_local(0.9, &mut policy);
     }
 }
 
@@ -172,21 +174,22 @@ impl geng::State for State {
         // });
         for pos in self.model.positions() {
             if let Some(cell) = self.model.get(pos) {
-                let value = self
-                    .geng
-                    .window()
-                    .cursor_position()
-                    .and_then(|mouse_pos| {
-                        let mouse_pos = self
-                            .camera
-                            .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
-                        let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                        self.values
-                            .get(cell_pos)
-                            .and_then(|grid| grid.get(pos))
-                            .copied()
-                    })
-                    .unwrap_or(0.0) as f32;
+                // let value = self
+                //     .geng
+                //     .window()
+                //     .cursor_position()
+                //     .and_then(|mouse_pos| {
+                //         let mouse_pos = self
+                //             .camera
+                //             .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
+                //         let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
+                //         self.shapley_values
+                //             .get(cell_pos)
+                //             .and_then(|grid| grid.get(pos))
+                //             .copied()
+                //     })
+                //     .unwrap_or(0.0) as f32;
+                let value = self.sverl_values.get(pos).copied().unwrap_or(0.0) as f32;
 
                 let ratio = 0.9;
                 let aabb = Aabb2::point(pos.as_f32() + vec2(0.5, 0.5))

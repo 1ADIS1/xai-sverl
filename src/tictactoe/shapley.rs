@@ -7,12 +7,12 @@ pub struct Observation {
 }
 
 impl Grid<Tile> {
-    pub fn full_observation(&self) -> Observation {
-        Observation {
-            positions: self.positions().collect(),
-            grid: self.clone(),
-        }
-    }
+    // pub fn full_observation(&self) -> Observation {
+    //     Observation {
+    //         positions: self.positions().collect(),
+    //         grid: self.clone(),
+    //     }
+    // }
 
     pub fn all_subsets(&self) -> Vec<Observation> {
         let positions: Vec<_> = self.positions().collect();

@@ -198,8 +198,12 @@ impl Grid<f64> {
         }
     }
 
+    pub fn sum(&self) -> f64 {
+        self.cells.iter().flatten().copied().sum()
+    }
+
     pub fn normalize(&self) -> Self {
-        let sum: f64 = self.cells.iter().flatten().copied().sum();
+        let sum = self.sum();
         if sum == 0.0 {
             return self.clone();
         }
