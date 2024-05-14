@@ -94,7 +94,7 @@ impl Grid<Tile> {
     }
 
     pub fn current_player(&self) -> Option<Player> {
-        if self.winner().is_some() {
+        if self.winner().is_some() || self.empty_positions().next().is_none() {
             return None;
         }
 
