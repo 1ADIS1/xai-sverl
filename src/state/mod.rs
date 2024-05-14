@@ -172,12 +172,26 @@ impl State {
         self.update_values();
     }
 
+    fn human_move(&mut self, pos: vec2<Coord>) {
+        if !self.model.check(pos) {
+            return;
+        }
+        let Some(player) = self.model.current_player() else {
+            return;
+        };
+        self.model.set(pos, player.into());
+    }
+
     fn reset(&mut self) {
         self.model = Grid::new();
         self.update_values();
     }
 
     fn click(&mut self, pos: vec2<f32>, button: geng::MouseButton) {
+        let geng::MouseButton::Left = button else {
+            return;
+        };
+
         if self.ui.policy_random.contains(pos) {
             self.policy = Policy::Random;
             self.update_values();
@@ -199,17 +213,7 @@ impl State {
             let cell_pos = world_pos.map(|x| x.floor() as isize);
             if cell_pos.x >= 0 && cell_pos.y >= 0 {
                 let cell_pos = cell_pos.map(|x| x as Coord);
-                match button {
-                    geng::MouseButton::Left => {
-                        self.model.set(cell_pos, Tile::X);
-                    }
-                    geng::MouseButton::Right => {
-                        self.model.set(cell_pos, Tile::O);
-                    }
-                    geng::MouseButton::Middle => {
-                        self.model.set(cell_pos, Tile::Empty);
-                    }
-                }
+                self.human_move(cell_pos);
                 self.update_values();
             }
         }
