@@ -50,7 +50,12 @@ fn main() {
         }
     }
 
-    logger::init();
+    logger::init_with({
+        let mut builder = logger::builder();
+        builder.filter_level(log::LevelFilter::Debug);
+        builder
+    })
+    .expect("failed to initialize logger");
     geng::setup_panic_handler();
 
     let mut options = geng::ContextOptions::default();

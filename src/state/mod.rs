@@ -135,17 +135,39 @@ impl State {
     }
 
     fn update_values(&mut self) {
-        let mut policy = policy_minimax_cached(None, &mut self.minimax_cache);
+        log::debug!("updating shapley and sverl values");
+        let mut policy = match self.policy {
+            Policy::Random => policy_random(),
+            Policy::Minimax => policy_minimax_cached(None, &mut self.minimax_cache),
+        };
+        let mut timer = Timer::new();
         self.shapley_values = self.model.shapley(&mut policy);
+        log::debug!(
+            "updated shapley values in {:.3}s",
+            timer.tick().as_secs_f64()
+        );
         self.sverl_values = self.model.sverl_local(0.9, &mut policy);
+        log::debug!("updated sverl values in {:.3}s", timer.tick().as_secs_f64());
     }
 
     fn ai_move(&mut self) {
         let Some(player) = self.model.current_player() else {
             return;
         };
-        let (action, value) = minimax_action(&self.model, &mut self.minimax_cache, player, None);
-        log::debug!("minimax chose action {:?} with value {:.2}", action, value);
+
+        let action = match self.policy {
+            Policy::Random => {
+                let action = random_action(&self.model);
+                log::debug!("random chose action {:?}", action);
+                action
+            }
+            Policy::Minimax => {
+                let (action, value) =
+                    minimax_action(&self.model, &mut self.minimax_cache, player, None);
+                log::debug!("minimax chose action {:?} with value {:.2}", action, value);
+                action
+            }
+        };
         self.model.set(action, player.into());
         self.update_values();
     }
@@ -155,11 +177,13 @@ impl State {
         self.update_values();
     }
 
-    fn click(&mut self, pos: vec2<f32>) {
+    fn click(&mut self, pos: vec2<f32>, button: geng::MouseButton) {
         if self.ui.policy_random.contains(pos) {
             self.policy = Policy::Random;
+            self.update_values();
         } else if self.ui.policy_minimax.contains(pos) {
             self.policy = Policy::Minimax;
+            self.update_values();
         } else if self.ui.method_shapley.contains(pos) {
             self.method = Method::Shapley;
         } else if self.ui.method_sverl.contains(pos) {
@@ -168,6 +192,26 @@ impl State {
             self.reset();
         } else if self.ui.board_policy_turn.contains(pos) {
             self.ai_move();
+        } else {
+            let world_pos = self
+                .camera
+                .screen_to_world(self.framebuffer_size.as_f32(), pos.as_f32());
+            let cell_pos = world_pos.map(|x| x.floor() as isize);
+            if cell_pos.x >= 0 && cell_pos.y >= 0 {
+                let cell_pos = cell_pos.map(|x| x as Coord);
+                match button {
+                    geng::MouseButton::Left => {
+                        self.model.set(cell_pos, Tile::X);
+                    }
+                    geng::MouseButton::Right => {
+                        self.model.set(cell_pos, Tile::O);
+                    }
+                    geng::MouseButton::Middle => {
+                        self.model.set(cell_pos, Tile::Empty);
+                    }
+                }
+                self.update_values();
+            }
         }
     }
 
@@ -261,24 +305,7 @@ impl geng::State for State {
             },
             geng::Event::MousePress { button } => {
                 if let Some(mouse_pos) = self.geng.window().cursor_position() {
-                    self.click(mouse_pos.as_f32());
-
-                    let mouse_pos = self
-                        .camera
-                        .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
-                    let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                    match button {
-                        geng::MouseButton::Left => {
-                            self.model.set(cell_pos, Tile::X);
-                        }
-                        geng::MouseButton::Right => {
-                            self.model.set(cell_pos, Tile::O);
-                        }
-                        geng::MouseButton::Middle => {
-                            self.model.set(cell_pos, Tile::Empty);
-                        }
-                    }
-                    self.update_values();
+                    self.click(mouse_pos.as_f32(), button);
                 }
             }
             geng::Event::CursorMove { position } => {
@@ -331,22 +358,25 @@ impl geng::State for State {
         // });
         for pos in self.model.positions() {
             if let Some(cell) = self.model.get(pos) {
-                // let value = self
-                //     .geng
-                //     .window()
-                //     .cursor_position()
-                //     .and_then(|mouse_pos| {
-                //         let mouse_pos = self
-                //             .camera
-                //             .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
-                //         let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                //         self.shapley_values
-                //             .get(cell_pos)
-                //             .and_then(|grid| grid.get(pos))
-                //             .copied()
-                //     })
-                //     .unwrap_or(0.0) as f32;
-                let value = self.sverl_values.get(pos).copied().unwrap_or(0.0) as f32;
+                let value = match self.method {
+                    Method::Shapley => self
+                        .geng
+                        .window()
+                        .cursor_position()
+                        .and_then(|mouse_pos| {
+                            let mouse_pos = self.camera.screen_to_world(
+                                self.framebuffer_size.as_f32(),
+                                mouse_pos.as_f32(),
+                            );
+                            let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
+                            self.shapley_values
+                                .get(cell_pos)
+                                .and_then(|grid| grid.get(pos))
+                                .copied()
+                        })
+                        .unwrap_or(0.0) as f32,
+                    Method::Sverl => self.sverl_values.get(pos).copied().unwrap_or(0.0) as f32,
+                };
 
                 let ratio = 0.9;
                 let aabb = Aabb2::point(pos.as_f32() + vec2(0.5, 0.5))
@@ -411,10 +441,6 @@ impl geng::State for State {
                             Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
                             Player::O => self.draw_o(cell_pos, 0.5, framebuffer),
                         }
-                        // match player.next() {
-                        //     Player::X => self.draw_x(action, 0.25, framebuffer),
-                        //     Player::O => self.draw_o(action, 0.25, framebuffer),
-                        // }
 
                         self.geng.default_font().draw(
                             framebuffer,
@@ -425,18 +451,6 @@ impl geng::State for State {
                                 * mat3::scale_uniform(0.8),
                             Rgba::WHITE,
                         );
-                        // self.geng.default_font().draw(
-                        //     framebuffer,
-                        //     &self.camera,
-                        //     &format!(
-                        //         "Shapley value: {:.2}",
-                        //         self.values.get(cell_pos).copied().unwrap_or(0.0)
-                        //     ),
-                        //     vec2::splat(geng::TextAlign::CENTER),
-                        //     mat3::translate(self.camera.center + vec2(0.0, -3.0))
-                        //         * mat3::scale_uniform(0.8),
-                        //     Rgba::WHITE,
-                        // );
                     }
                 }
             }

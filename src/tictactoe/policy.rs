@@ -5,6 +5,29 @@ use super::*;
 pub type Policy<'a> = Box<dyn FnMut(&Grid) -> Grid<f64> + 'a>;
 pub type Action = vec2<Coord>;
 
+fn choose_action(probs: Grid<f64>) -> Action {
+    let mut rng: f64 = thread_rng().gen();
+    let mut last = vec2::ZERO;
+    for pos in probs.positions() {
+        let &p = probs.get(pos).unwrap();
+        if p <= 0.0 {
+            continue;
+        }
+        rng -= p;
+        if rng <= 0.0 {
+            return pos;
+        }
+        last = pos;
+    }
+    // it's theoretically unreachable, but could get here with floating point imprecision or invalid input
+    last
+}
+
+pub fn random_action(grid: &Grid) -> Action {
+    let probs = policy_random()(grid);
+    choose_action(probs)
+}
+
 pub fn policy_random() -> Policy<'static> {
     Box::new(|grid: &Grid| {
         let options = grid.empty_positions().count();
@@ -47,25 +70,12 @@ pub fn minimax_action(
 ) -> (Action, f64) {
     let probs = minimax_probability(grid, cache, player, limit);
     let values = minimax(grid, cache, player, limit, 0);
-    let mut rng: f64 = thread_rng().gen();
-    let mut last = (vec2::ZERO, 0.0);
-    for pos in probs.positions() {
-        let &p = probs.get(pos).unwrap();
-        if p <= 0.0 {
-            continue;
-        }
-        let mut v = *values.get(pos).unwrap();
-        if v.abs() <= 1e-5 {
-            v = 0.0;
-        }
-        rng -= p;
-        if rng <= 0.0 {
-            return (pos, v);
-        }
-        last = (pos, v);
+    let action = choose_action(probs);
+    let mut value = *values.get(action).unwrap();
+    if value.abs() <= 1e-5 {
+        value = 0.0;
     }
-    // it's theoretically unreachable, but could get here with floating point imprecision
-    last
+    (action, value)
 }
 
 pub fn minimax_probability(
