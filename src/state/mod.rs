@@ -373,11 +373,16 @@ impl geng::State for State {
                                 self.framebuffer_size.as_f32(),
                                 mouse_pos.as_f32(),
                             );
-                            let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                            self.shapley_values
-                                .get(cell_pos)
-                                .and_then(|grid| grid.get(pos))
-                                .copied()
+                            let cell_pos = mouse_pos.map(|x| x.floor() as isize);
+                            (cell_pos.x >= 0 && cell_pos.y >= 0)
+                                .then(|| {
+                                    let cell_pos = cell_pos.map(|x| x as Coord);
+                                    self.shapley_values
+                                        .get(cell_pos)
+                                        .and_then(|grid| grid.get(pos))
+                                        .copied()
+                                })
+                                .flatten()
                         })
                         .unwrap_or(0.0) as f32,
                     Method::Sverl => self.sverl_values.get(pos).copied().unwrap_or(0.0) as f32,
