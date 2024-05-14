@@ -8,11 +8,70 @@ use geng_utils::conversions::Vec2RealConversions;
 pub struct State {
     geng: Geng,
     framebuffer_size: vec2<usize>,
+    ui: Ui,
     camera: Camera2d,
+    policy: Policy,
+    method: Method,
     model: Grid,
     minimax_cache: BTreeMap<Grid, Grid<f64>>,
     shapley_values: Grid<Grid<f64>>,
     sverl_values: Grid<f64>,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Policy {
+    Random,
+    Minimax,
+}
+
+#[derive(Debug, Clone, Copy)]
+enum Method {
+    Shapley,
+    Sverl,
+}
+
+pub struct Ui {
+    font_size: f32,
+    cursor_pos: vec2<f32>,
+    policy_random: Aabb2<f32>,
+    policy_minimax: Aabb2<f32>,
+    method_shapley: Aabb2<f32>,
+    method_sverl: Aabb2<f32>,
+    board_reset: Aabb2<f32>,
+    board_policy_turn: Aabb2<f32>,
+}
+
+impl Ui {
+    pub fn new() -> Self {
+        Self {
+            font_size: 1.0,
+            cursor_pos: vec2::ZERO,
+            policy_random: Aabb2::ZERO,
+            policy_minimax: Aabb2::ZERO,
+            method_shapley: Aabb2::ZERO,
+            method_sverl: Aabb2::ZERO,
+            board_reset: Aabb2::ZERO,
+            board_policy_turn: Aabb2::ZERO,
+        }
+    }
+
+    pub fn layout(&mut self, framebuffer_size: vec2<f32>) {
+        let font_size = framebuffer_size.x.min(framebuffer_size.y) * 0.03;
+        let font_size = font_size.max(20.0);
+        self.font_size = font_size;
+
+        let button_size = vec2(4.0, 2.0) * font_size;
+        let button = Aabb2::ZERO.extend_positive(button_size);
+
+        let pos = framebuffer_size * vec2(0.1, 0.6);
+        let offset = vec2(0.0, button.height() + font_size * 0.5);
+        self.policy_random = button.translate(pos);
+        self.policy_minimax = button.translate(pos - offset);
+        self.method_shapley = button.translate(pos - offset * 3.0);
+        self.method_sverl = button.translate(pos - offset * 4.0);
+        self.board_reset = button.translate(pos - offset * 6.0);
+        self.board_policy_turn = button.translate(pos - offset * 7.0);
+    }
 }
 
 impl State {
@@ -20,11 +79,14 @@ impl State {
         let mut state = State {
             geng: geng.clone(),
             framebuffer_size: vec2(1, 1),
+            ui: Ui::new(),
             camera: Camera2d {
                 center: vec2::ZERO,
                 rotation: Angle::ZERO,
                 fov: 10.0,
             },
+            policy: Policy::Minimax,
+            method: Method::Sverl,
             model: Grid::new(),
             minimax_cache: BTreeMap::new(),
             shapley_values: Grid::from_fn(|_| Grid::zero()),
@@ -77,6 +139,108 @@ impl State {
         self.shapley_values = self.model.shapley(&mut policy);
         self.sverl_values = self.model.sverl_local(0.9, &mut policy);
     }
+
+    fn ai_move(&mut self) {
+        let Some(player) = self.model.current_player() else {
+            return;
+        };
+        let (action, value) = minimax_action(&self.model, &mut self.minimax_cache, player, None);
+        log::debug!("minimax chose action {:?} with value {:.2}", action, value);
+        self.model.set(action, player.into());
+        self.update_values();
+    }
+
+    fn reset(&mut self) {
+        self.model = Grid::new();
+        self.update_values();
+    }
+
+    fn click(&mut self, pos: vec2<f32>) {
+        if self.ui.policy_random.contains(pos) {
+            self.policy = Policy::Random;
+        } else if self.ui.policy_minimax.contains(pos) {
+            self.policy = Policy::Minimax;
+        } else if self.ui.method_shapley.contains(pos) {
+            self.method = Method::Shapley;
+        } else if self.ui.method_sverl.contains(pos) {
+            self.method = Method::Sverl;
+        } else if self.ui.board_reset.contains(pos) {
+            self.reset();
+        } else if self.ui.board_policy_turn.contains(pos) {
+            self.ai_move();
+        }
+    }
+
+    fn draw_ui(&mut self, framebuffer: &mut ugli::Framebuffer) {
+        let camera = &geng::PixelPerfectCamera;
+        let font_size = self.ui.font_size;
+
+        let mut draw_button = |text: &str, position: Aabb2<f32>, active: bool| {
+            let color = if active {
+                Rgba::try_from("#aaa").unwrap()
+            } else {
+                Rgba::try_from("#555").unwrap()
+            };
+            self.geng
+                .draw2d()
+                .quad(framebuffer, camera, position, color);
+
+            let color = if position.contains(self.ui.cursor_pos) {
+                if geng_utils::key::is_key_pressed(self.geng.window(), [geng::MouseButton::Left]) {
+                    // Pressed
+                    Rgba::try_from("#111").unwrap()
+                } else {
+                    // Hovered
+                    Rgba::try_from("#333").unwrap()
+                }
+            } else {
+                Rgba::try_from("#222").unwrap()
+            };
+            self.geng.draw2d().quad(
+                framebuffer,
+                camera,
+                position.extend_uniform(-font_size * 0.2),
+                color,
+            );
+
+            self.geng.default_font().draw(
+                framebuffer,
+                camera,
+                text,
+                vec2::splat(geng::TextAlign::CENTER),
+                mat3::translate(
+                    geng_utils::layout::aabb_pos(
+                        position.extend_symmetric(vec2(-font_size, 0.0)),
+                        vec2(0.5, 0.5),
+                    ) + vec2(0.0, -font_size / 4.0),
+                ) * mat3::scale_uniform(font_size),
+                Rgba::WHITE,
+            );
+        };
+
+        draw_button(
+            "Policy: Random",
+            self.ui.policy_random,
+            matches!(self.policy, Policy::Random),
+        );
+        draw_button(
+            "Policy: Minimax",
+            self.ui.policy_minimax,
+            matches!(self.policy, Policy::Minimax),
+        );
+        draw_button(
+            "Method: Shapley",
+            self.ui.method_shapley,
+            matches!(self.method, Method::Shapley),
+        );
+        draw_button(
+            "Method: SVERL-P",
+            self.ui.method_sverl,
+            matches!(self.method, Method::Sverl),
+        );
+        draw_button("Board Reset", self.ui.board_reset, false);
+        draw_button("Policy Turn", self.ui.board_policy_turn, false);
+    }
 }
 
 impl geng::State for State {
@@ -86,31 +250,19 @@ impl geng::State for State {
 
     fn handle_event(&mut self, event: geng::Event) {
         match event {
-            geng::Event::KeyPress { key } => {
-                match key {
-                    geng::Key::Space => {
-                        // AI move
-                        if let Some(player) = self.model.current_player() {
-                            let (action, value) =
-                                minimax_action(&self.model, &mut self.minimax_cache, player, None);
-                            log::debug!(
-                                "minimax chose action {:?} with value {:.2}",
-                                action,
-                                value
-                            );
-                            self.model.set(action, player.into());
-                            self.update_values();
-                        }
-                    }
-                    geng::Key::R => {
-                        self.model = Grid::new();
-                        self.update_values();
-                    }
-                    _ => {}
+            geng::Event::KeyPress { key } => match key {
+                geng::Key::Space => {
+                    self.ai_move();
                 }
-            }
+                geng::Key::R => {
+                    self.reset();
+                }
+                _ => {}
+            },
             geng::Event::MousePress { button } => {
                 if let Some(mouse_pos) = self.geng.window().cursor_position() {
+                    self.click(mouse_pos.as_f32());
+
                     let mouse_pos = self
                         .camera
                         .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
@@ -129,11 +281,16 @@ impl geng::State for State {
                     self.update_values();
                 }
             }
+            geng::Event::CursorMove { position } => {
+                self.ui.cursor_pos = position.as_f32();
+            }
             _ => (),
         }
     }
 
     fn draw(&mut self, framebuffer: &mut ugli::Framebuffer) {
+        self.ui.layout(framebuffer.size().as_f32());
+
         self.framebuffer_size = framebuffer.size();
         ugli::clear(framebuffer, Some(Rgba::BLACK), None, None);
 
@@ -284,5 +441,7 @@ impl geng::State for State {
                 }
             }
         }
+
+        self.draw_ui(framebuffer);
     }
 }
