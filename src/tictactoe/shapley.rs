@@ -1,6 +1,6 @@
 use super::*;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Observation {
     pub positions: Vec<vec2<Coord>>,
     pub grid: Grid,
@@ -37,6 +37,16 @@ impl Grid<Tile> {
         let subsets = self.all_subsets();
         let n = self.positions().count();
         let scale = (factorial(n) as f64).recip();
+
+        let mut cache = HashMap::<Observation, Grid<f64>>::new();
+        let mut value = move |observation: &Observation| {
+            if let Some(cached) = cache.get(observation) {
+                return cached.clone();
+            }
+            let res = value(observation);
+            cache.insert(observation.clone(), res.clone());
+            res
+        };
 
         Grid::from_fn(|pos| {
             let mut result = subsets
