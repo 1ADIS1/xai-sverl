@@ -16,6 +16,25 @@ enum Command {
     Test,
 }
 
+#[derive(geng::asset::Load, Serialize, Deserialize)]
+#[load(serde = "toml")]
+struct Config {
+    palette: Palette,
+}
+
+#[derive(Serialize, Deserialize)]
+struct Palette {
+    background: Rgba<f32>,
+    text: Rgba<f32>,
+    grid: Rgba<f32>,
+    eval_negative: Rgba<f32>,
+    eval_positive: Rgba<f32>,
+    button_background: Rgba<f32>,
+    button_background_hover: Rgba<f32>,
+    button_border: Rgba<f32>,
+    button_border_active: Rgba<f32>,
+}
+
 fn main() {
     let opts: Opts = clap::Parser::parse();
 
@@ -62,7 +81,13 @@ fn main() {
     options.window.title = "XAI".into();
     options.with_cli(&opts.geng);
     Geng::run_with(&options, |geng| async move {
-        let state = state::State::new(&geng);
+        let manager = geng.asset_manager();
+        let config: Config =
+            geng::asset::Load::load(manager, &run_dir().join("assets").join("config.toml"), &())
+                .await
+                .expect("failed to load config");
+
+        let state = state::State::new(&geng, config);
         geng.run_state(state).await;
     });
 }

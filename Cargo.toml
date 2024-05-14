@@ -9,6 +9,7 @@ edition = "2021"
 clap = { version = "4.5.4", features = ["derive"] }
 geng = "0.17.2"
 geng-utils = "0.3.0"
+serde = { version = "1.0.201", features = ["derive"] }
 
 [patch.crates-io]
 async-broadcast = { git = "https://github.com/kuviman/async-broadcast", branch = "fix-wasm" } # TODO: until https://github.com/smol-rs/async-broadcast/pull/47 is merged

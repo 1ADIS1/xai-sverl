@@ -1,0 +1,10 @@
+[palette]
+background = "#000"
+text = "#fff"
+grid = "#777"
+eval_negative = "#f00"
+eval_positive = "#00f"
+button_background = "#222"
+button_background_hover = "#333"
+button_border = "#555"
+button_border_active = "#aaa"

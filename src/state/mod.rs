@@ -1,4 +1,7 @@
-use crate::tictactoe::{Tile, *};
+use crate::{
+    tictactoe::{Tile, *},
+    Config,
+};
 
 use std::collections::BTreeMap;
 
@@ -7,6 +10,7 @@ use geng_utils::conversions::Vec2RealConversions;
 
 pub struct State {
     geng: Geng,
+    config: Config,
     framebuffer_size: vec2<usize>,
     ui: Ui,
     camera: Camera2d,
@@ -60,10 +64,10 @@ impl Ui {
         let font_size = font_size.max(20.0);
         self.font_size = font_size;
 
-        let button_size = vec2(4.0, 2.0) * font_size;
+        let button_size = vec2(7.0, 2.0) * font_size;
         let button = Aabb2::ZERO.extend_positive(button_size);
 
-        let pos = framebuffer_size * vec2(0.1, 0.6);
+        let pos = framebuffer_size * vec2(0.1, 0.7);
         let offset = vec2(0.0, button.height() + font_size * 0.5);
         self.policy_random = button.translate(pos);
         self.policy_minimax = button.translate(pos - offset);
@@ -75,9 +79,10 @@ impl Ui {
 }
 
 impl State {
-    pub fn new(geng: &Geng) -> State {
+    pub fn new(geng: &Geng, config: Config) -> State {
         let mut state = State {
             geng: geng.clone(),
+            config,
             framebuffer_size: vec2(1, 1),
             ui: Ui::new(),
             camera: Camera2d {
@@ -101,7 +106,7 @@ impl State {
         let aabb =
             Aabb2::point(pos.as_f32() + vec2(0.5, 0.5)).extend_symmetric(vec2(ratio, ratio) / 2.0);
 
-        let mut color = Rgba::GRAY;
+        let mut color = self.config.palette.grid;
         color.a *= transparency;
         self.geng.draw2d().draw2d(
             framebuffer,
@@ -120,7 +125,7 @@ impl State {
         let aabb =
             Aabb2::point(pos.as_f32() + vec2(0.5, 0.5)).extend_symmetric(vec2(ratio, ratio) / 2.0);
 
-        let mut color = Rgba::GRAY;
+        let mut color = self.config.palette.grid;
         color.a *= transparency;
         self.geng.draw2d().draw2d(
             framebuffer,
@@ -225,24 +230,18 @@ impl State {
 
         let mut draw_button = |text: &str, position: Aabb2<f32>, active: bool| {
             let color = if active {
-                Rgba::try_from("#aaa").unwrap()
+                self.config.palette.button_border_active
             } else {
-                Rgba::try_from("#555").unwrap()
+                self.config.palette.button_border
             };
             self.geng
                 .draw2d()
                 .quad(framebuffer, camera, position, color);
 
             let color = if position.contains(self.ui.cursor_pos) {
-                if geng_utils::key::is_key_pressed(self.geng.window(), [geng::MouseButton::Left]) {
-                    // Pressed
-                    Rgba::try_from("#111").unwrap()
-                } else {
-                    // Hovered
-                    Rgba::try_from("#333").unwrap()
-                }
+                self.config.palette.button_background_hover
             } else {
-                Rgba::try_from("#222").unwrap()
+                self.config.palette.button_background
             };
             self.geng.draw2d().quad(
                 framebuffer,
@@ -256,13 +255,10 @@ impl State {
                 camera,
                 text,
                 vec2::splat(geng::TextAlign::CENTER),
-                mat3::translate(
-                    geng_utils::layout::aabb_pos(
-                        position.extend_symmetric(vec2(-font_size, 0.0)),
-                        vec2(0.5, 0.5),
-                    ) + vec2(0.0, -font_size / 4.0),
-                ) * mat3::scale_uniform(font_size),
-                Rgba::WHITE,
+                mat3::translate(position.center())
+                    * mat3::scale_uniform(font_size)
+                    * mat3::translate(vec2(0.0, 0.25)),
+                self.config.palette.text,
             );
         };
 
@@ -323,7 +319,12 @@ impl geng::State for State {
         self.ui.layout(framebuffer.size().as_f32());
 
         self.framebuffer_size = framebuffer.size();
-        ugli::clear(framebuffer, Some(Rgba::BLACK), None, None);
+        ugli::clear(
+            framebuffer,
+            Some(self.config.palette.background),
+            None,
+            None,
+        );
 
         // Grid lines
         let bounds = self.model.bounds();
@@ -337,7 +338,7 @@ impl geng::State for State {
                         vec2(x, bounds.max.y).as_f32(),
                     ),
                     0.1,
-                    Rgba::GRAY,
+                    self.config.palette.grid,
                 ),
             );
         }
@@ -351,7 +352,7 @@ impl geng::State for State {
                         vec2(bounds.max.x, y).as_f32(),
                     ),
                     0.1,
-                    Rgba::GRAY,
+                    self.config.palette.grid,
                 ),
             );
         }
@@ -385,9 +386,9 @@ impl geng::State for State {
                 let ratio = 0.9;
                 let aabb = Aabb2::point(pos.as_f32() + vec2(0.5, 0.5))
                     .extend_symmetric(vec2(ratio, ratio) / 2.0);
-                let mut negative = Rgba::RED;
+                let mut negative = self.config.palette.eval_negative;
                 negative.a = -value;
-                let mut positive = Rgba::BLUE;
+                let mut positive = self.config.palette.eval_positive;
                 positive.a = value;
                 let color = if value > 0.0 { positive } else { negative };
                 self.geng
@@ -412,7 +413,7 @@ impl geng::State for State {
                 //         &format!("{:+.2}", value),
                 //         vec2::splat(geng::TextAlign::CENTER),
                 //         mat3::translate(pos.as_f32() + vec2(0.5, 0.5)) * mat3::scale_uniform(0.3),
-                //         Rgba::WHITE,
+                //         self.config.palette.text,
                 //     );
                 // }
             }
@@ -425,7 +426,7 @@ impl geng::State for State {
                 &format!("Winner {:?}", winner),
                 vec2::splat(geng::TextAlign::CENTER),
                 mat3::translate(self.camera.center + vec2(0.0, -4.0)) * mat3::scale_uniform(1.0),
-                Rgba::WHITE,
+                self.config.palette.text,
             );
         } else {
             // Display minimax evaluation
@@ -433,28 +434,31 @@ impl geng::State for State {
                 let mouse_pos = self
                     .camera
                     .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
-                let cell_pos = mouse_pos.map(|x| x.floor() as Coord);
-                if let Some(Tile::Empty) = self.model.get(cell_pos) {
-                    let mut grid = self.model.clone();
-                    if let Some(player) = grid.current_player() {
-                        grid.set(cell_pos, player.into());
-                        let (_action, value) =
-                            minimax_action(&grid, &mut self.minimax_cache, player.next(), None);
+                let cell_pos = mouse_pos.map(|x| x.floor() as isize);
+                if cell_pos.x >= 0 && cell_pos.y >= 0 {
+                    let cell_pos = cell_pos.map(|x| x as Coord);
+                    if let Some(Tile::Empty) = self.model.get(cell_pos) {
+                        let mut grid = self.model.clone();
+                        if let Some(player) = grid.current_player() {
+                            grid.set(cell_pos, player.into());
+                            let (_action, value) =
+                                minimax_action(&grid, &mut self.minimax_cache, player.next(), None);
 
-                        match player {
-                            Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
-                            Player::O => self.draw_o(cell_pos, 0.5, framebuffer),
+                            match player {
+                                Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
+                                Player::O => self.draw_o(cell_pos, 0.5, framebuffer),
+                            }
+
+                            self.geng.default_font().draw(
+                                framebuffer,
+                                &self.camera,
+                                &format!("Minimax evaluation: {:+.2}", value),
+                                vec2::splat(geng::TextAlign::CENTER),
+                                mat3::translate(self.camera.center + vec2(0.0, -4.0))
+                                    * mat3::scale_uniform(0.8),
+                                self.config.palette.text,
+                            );
                         }
-
-                        self.geng.default_font().draw(
-                            framebuffer,
-                            &self.camera,
-                            &format!("Minimax evaluation: {:+.2}", value),
-                            vec2::splat(geng::TextAlign::CENTER),
-                            mat3::translate(self.camera.center + vec2(0.0, -4.0))
-                                * mat3::scale_uniform(0.8),
-                            Rgba::WHITE,
-                        );
                     }
                 }
             }
