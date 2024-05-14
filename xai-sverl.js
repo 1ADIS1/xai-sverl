@@ -1378,8 +1378,8 @@ function __wbg_get_imports() {
         const ret = makeClosure(arg0, arg1, 102, __wbg_adapter_32);
         return addHeapObject(ret);
     };
-    imports.wbg.__wbindgen_closure_wrapper3278 = function(arg0, arg1, arg2) {
-        const ret = makeMutClosure(arg0, arg1, 1492, __wbg_adapter_46);
+    imports.wbg.__wbindgen_closure_wrapper3277 = function(arg0, arg1, arg2) {
+        const ret = makeMutClosure(arg0, arg1, 1490, __wbg_adapter_46);
         return addHeapObject(ret);
     };
     imports['./snippets/geng-5140aff9b59bfc3f/inline3.js'] = __wbg_star0;
