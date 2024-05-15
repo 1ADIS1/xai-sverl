@@ -2,4 +2,4 @@ This is implementation and tutorial on SVERL-P from paper ["Explaining Reinforce
 
 [Web demo](https://1adis1.github.io/xai-sverl/).
 
-[Tutorial on implementation]().
+[Tutorial on implementation](TUTORIAL.md).
