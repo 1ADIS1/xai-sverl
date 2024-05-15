@@ -15,12 +15,12 @@
 - [References](#references)
 
 
-# Introduction
+## Introduction
 
-
-![RL image](docs/rl.png)
-
-[https://www.toptal.com/machine-learning/deep-dive-into-reinforcement-learning]()
+<div align="center">
+  <img src="docs/rl.png">
+  <p>https://www.toptal.com/machine-learning/deep-dive-into-reinforcement-learning</p>
+</div>
 
 Explainability and interpretability of AI models is a hot topic in the research community in recent times. With the growth of new technology and methods in the neural networks field, the endeavour to understand the “black box” models is rising in popularity.
 
@@ -34,17 +34,20 @@ Also, we assume that you are familiar with machine learning, reinforcement learn
 
 A quick reminder: reinforcement learning is a type of unsupervised learning technique, in which you train the agent in the environment, which can vary from a hide-and-seek game to a driving simulation.
 
-![Open AI GIF](docs/hide_and_seek.gif)
-OpenAI reinforcement learning research paper visualisation [2].
+<div align="center">
+  <img src="docs/hide_and_seek.gif">
+  <p>OpenAI reinforcement learning research paper visualisation [2].</p>
+</div>
 
 For the implementation, we will be using a ⚡blazingly fast⚡ and statically-typed programming language called 🦀 Rust 🦀. We will provide a few snippets, but our main goal is to provide you with the idea on implementation, so you can try to implement these methods in your favourite programming language.
 
 
-# Explainable Artificial Intelligence
+## Explainable Artificial Intelligence
 
-
-![XAI trends](docs/xai_growth.png)
-Yearly growth trends. Papers before 2013 were omitted for readability [3].
+<div align="center">
+  <img src="docs/xai_growth.png">
+  <p>Yearly growth trends. Papers before 2013 were omitted for readability [3].</p>
+</div>
 
 Explainable Artificial Intelligence (XAI) is a field of study that seeks to make AI systems more understandable and interpretable to humans [4].
 
@@ -55,15 +58,19 @@ Fair AI - AI systems can perpetuate and amplify existing societal biases if they
 There are many techniques, methods, and algorithms invented in recent years to explain AI and design it to be fair. These techniques involve: LIME (Locally Interpretable Model-Agnostic Explanations), SHAP (Shapley Additive exPlanations), DeepDream, SVERL-P, and many more.
 
 
-# Shapley values
+## Shapley values
 
 
-![Group project](docs/group_project.png)
+<div align="center">
+  <img src="docs/group_project.png">
+</div>
 
 Imagine you and your friend are making a group project in a university course. At the end of the course, you get B and your friend gets A. You think this is unfair, but how to prove it? Well, to fairly assess your performance, you can calculate your contribution to the group project, i.e. to a coalition of two players using Shapley values. For example, if your friend would do the project alone, they would complete 45% of the project. However, together you complete 100% of the project.
 
-![Shapley value formula](docs/shapley_formula.png)
-Shapley value formula [4].
+<div align="center">
+  <img src="docs/shapley_formula.png">
+  <p>Shapley value formula [4].</p>
+</div>
 
 Shapley values are a concept from cooperative game theory that provides a way to fairly distribute the marginal gains among players in a coalition, ensuring that each player gets as much or more than they would have if they acted independently.
 
@@ -73,8 +80,10 @@ After all the calculations are done, you get a fair assessment of your performan
 
 One more thing about Shapley values is that they satisfy the following 4 properties [5]:
 
-![Shapley properties](docs/shapley_properties.png)
-4 properties of Shapley values [4].
+<div align="center">
+  <img src="docs/shapley_properties.png">
+  <p>4 properties of Shapley values [4].</p>
+</div>
 
 - Efficiency - the sum of the Shapley values of all agents equals the value of the grand coalition, so that all the gain is distributed among the agents.
 - Symmetry - two players are considered interchangeable if they make the same contribution to all coalitions.
@@ -82,10 +91,12 @@ One more thing about Shapley values is that they satisfy the following 4 propert
 - Linearity (Additivity) - shapley value of coalition is equal to shapley values of individuals in this coalition.
 
 
-# Environment
+## Environment
 
 
-![Tic-Tac-Toe game](docs/tic_tac_toe.png)
+<div align="center">
+  <img src="docs/tic_tac_toe.png">
+</div>
 
 For this project, we have coded the Tic-Tac-Toe game in the Rust programming language using Geng game engine [6].
 
@@ -102,7 +113,7 @@ In this simple environment we will introduce 2 models/policies and try to interp
   - Minimax calculates all possible game outcomes for both players, and compares them. As output it produces the action, which leads to a maximum available value.
 
 
-# Shapley values applied to policy
+## Shapley values applied to policy
 
 Before applying the method, we need to define terms and try to understand them.
 
@@ -119,7 +130,7 @@ v^\pi(C) = \pi_c(a|s) = \sum_{s' \in S} p^\pi(s'|s_C) \pi(a|s')
 
 Where C is the observation (with the features from the coalition), $`p^\pi(s’|s_C)`$ is the probability of seeing state $`s’`$ given the observation $`s_C`$.
 
-# SVERL-P
+## SVERL-P
 
 Instead of applying shapley values directly to policy, we can use a better approach, which is called Shapley Values for Explaining Reinforcement Learning Performance or in short SVERL-P.
 
@@ -149,18 +160,20 @@ v^{global}(C) = E_{\pi_C}[\sum_{t=0}^{\infty} \gamma^t r_{t+1} | s_0=s]
 
 Where $`\phi_i`$ is the Shapley value.
 
-# Demo
+## Demo
 
 You can try out environment from this tutorial in the web for yourself: https://1adis1.github.io/xai-sverl/
 
-![Demo](docs/shapley.gif)
+<div align="center">
+  <img src="docs/shapley.gif">
+</div>
 
-# Conclusion
+## Conclusion
 
 As a result, we have implemented Shapley values and SVERL-P algorithm to Tic-Tac-Toe. While Shapley values are used for interpreting specific actions of the policy, it may be difficult to understand their impact on the game. And SVERL-P is designed to solve that problem by showing directly the contribution of each feature to the outcome of the game.
 
 
-# References
+## References
 
 - [1] [Beechey et. al. “Explaining Reinforcement Learning with Shapley Values”](https://proceedings.mlr.press/v202/beechey23a/beechey23a.pdf)
 - [2] [OpenAI Hide-and-Seek simulation](https://www.youtube.com/watch?v=kopoLzvh5jY)
