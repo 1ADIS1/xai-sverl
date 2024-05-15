@@ -16,10 +16,13 @@ pub struct State {
     camera: Camera2d,
     policy: Policy,
     method: Method,
+    sverl_global: bool,
+
     model: Grid,
     minimax_cache: BTreeMap<Grid, Grid<f64>>,
     shapley_values: Grid<Grid<f64>>,
-    sverl_values: Grid<f64>,
+    sverl_values_local: Grid<f64>,
+    sverl_values_global: Grid<f64>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -31,7 +34,7 @@ enum Policy {
 #[derive(Debug, Clone, Copy)]
 enum Method {
     Shapley,
-    Sverl,
+    Sverl { global: bool },
 }
 
 pub struct Ui {
@@ -41,6 +44,7 @@ pub struct Ui {
     policy_minimax: Aabb2<f32>,
     method_shapley: Aabb2<f32>,
     method_sverl: Aabb2<f32>,
+    method_sverl_global: Aabb2<f32>,
     board_reset: Aabb2<f32>,
     board_policy_turn: Aabb2<f32>,
 }
@@ -54,6 +58,7 @@ impl Ui {
             policy_minimax: Aabb2::ZERO,
             method_shapley: Aabb2::ZERO,
             method_sverl: Aabb2::ZERO,
+            method_sverl_global: Aabb2::ZERO,
             board_reset: Aabb2::ZERO,
             board_policy_turn: Aabb2::ZERO,
         }
@@ -75,6 +80,13 @@ impl Ui {
         self.method_sverl = button.translate(pos - offset * 4.0);
         self.board_reset = button.translate(pos - offset * 6.0);
         self.board_policy_turn = button.translate(pos - offset * 7.0);
+
+        let tickbox_size = vec2::splat(1.5) * font_size;
+        let tickbox = Aabb2::ZERO.extend_symmetric(tickbox_size / 2.0);
+        let pos = geng_utils::layout::aabb_pos(self.method_sverl, vec2(1.0, 0.5));
+        self.method_sverl_global = tickbox
+            .translate(pos)
+            .translate(vec2(font_size + tickbox.width() / 2.0, 0.0));
     }
 }
 
@@ -91,11 +103,14 @@ impl State {
                 fov: 10.0,
             },
             policy: Policy::Minimax,
-            method: Method::Sverl,
+            method: Method::Sverl { global: false },
+            sverl_global: false,
+
             model: Grid::new(),
             minimax_cache: BTreeMap::new(),
             shapley_values: Grid::from_fn(|_| Grid::zero()),
-            sverl_values: Grid::zero(),
+            sverl_values_local: Grid::zero(),
+            sverl_values_global: Grid::zero(),
         };
         state.update_values();
         state
@@ -151,7 +166,8 @@ impl State {
             "updated shapley values in {:.3}s",
             timer.tick().as_secs_f64()
         );
-        self.sverl_values = self.model.sverl_local(0.9, &mut policy);
+        self.sverl_values_local = self.model.sverl(false, 0.9, &mut policy);
+        self.sverl_values_global = self.model.sverl(true, 0.9, &mut policy);
         log::debug!("updated sverl values in {:.3}s", timer.tick().as_secs_f64());
     }
 
@@ -206,11 +222,18 @@ impl State {
         } else if self.ui.method_shapley.contains(pos) {
             self.method = Method::Shapley;
         } else if self.ui.method_sverl.contains(pos) {
-            self.method = Method::Sverl;
+            self.method = Method::Sverl {
+                global: self.sverl_global,
+            };
         } else if self.ui.board_reset.contains(pos) {
             self.reset();
         } else if self.ui.board_policy_turn.contains(pos) {
             self.ai_move();
+        } else if self.ui.method_sverl_global.contains(pos) {
+            if let Method::Sverl { global } = &mut self.method {
+                *global = !*global;
+                self.sverl_global = *global;
+            }
         } else {
             let world_pos = self
                 .camera
@@ -280,10 +303,49 @@ impl State {
         draw_button(
             "Method: SVERL-P",
             self.ui.method_sverl,
-            matches!(self.method, Method::Sverl),
+            matches!(self.method, Method::Sverl { .. }),
         );
         draw_button("Board Reset", self.ui.board_reset, false);
         draw_button("Policy Turn", self.ui.board_policy_turn, false);
+
+        if let Method::Sverl { global } = self.method {
+            // Tickbox
+            let position = self.ui.method_sverl_global;
+
+            // Outline
+            let color = if global {
+                self.config.palette.button_border_active
+            } else {
+                self.config.palette.button_border
+            };
+            self.geng
+                .draw2d()
+                .draw2d(framebuffer, camera, &draw2d::Quad::new(position, color));
+
+            // Fill
+            let color = if position.contains(self.ui.cursor_pos) {
+                self.config.palette.button_background_hover
+            } else {
+                self.config.palette.button_background
+            };
+            self.geng.draw2d().draw2d(
+                framebuffer,
+                camera,
+                &draw2d::Quad::new(position.extend_uniform(-font_size * 0.2), color),
+            );
+
+            // Text
+            let font_size = font_size * 0.8;
+            self.geng.default_font().draw(
+                framebuffer,
+                camera,
+                "Global",
+                vec2::splat(geng::TextAlign::CENTER),
+                mat3::translate(position.center() + vec2(0.0, -font_size / 4.0))
+                    * mat3::scale_uniform(font_size),
+                Rgba::WHITE,
+            );
+        }
     }
 }
 
@@ -385,7 +447,14 @@ impl geng::State for State {
                                 .flatten()
                         })
                         .unwrap_or(0.0) as f32,
-                    Method::Sverl => self.sverl_values.get(pos).copied().unwrap_or(0.0) as f32,
+                    Method::Sverl { global } => {
+                        let values = if global {
+                            &self.sverl_values_global
+                        } else {
+                            &self.sverl_values_local
+                        };
+                        values.get(pos).copied().unwrap_or(0.0) as f32
+                    }
                 };
 
                 let ratio = 0.9;

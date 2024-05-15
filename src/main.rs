@@ -48,8 +48,12 @@ fn main() {
                 println!("shapley: {:?}", shapley);
                 println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
-                let sverl = tictactoe::Grid::new().sverl_local(0.5, &mut policy);
-                println!("sverl: {:?}", sverl);
+                let sverl = tictactoe::Grid::new().sverl(false, 0.5, &mut policy);
+                println!("sverl local: {:?}", sverl);
+                println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+
+                let sverl = tictactoe::Grid::new().sverl(true, 0.5, &mut policy);
+                println!("sverl global: {:?}", sverl);
                 println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
                 println!("\nMinimax policy");
@@ -60,8 +64,12 @@ fn main() {
                 println!("shapley: {:?}", shapley);
                 println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
-                let sverl = tictactoe::Grid::new().sverl_local(0.5, &mut policy);
-                println!("sverl: {:?}", sverl);
+                let sverl = tictactoe::Grid::new().sverl(false, 0.5, &mut policy);
+                println!("sverl local: {:?}", sverl);
+                println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
+
+                let sverl = tictactoe::Grid::new().sverl(true, 0.5, &mut policy);
+                println!("sverl global: {:?}", sverl);
                 println!("calc took {}ms", timer.tick().as_secs_f64() * 1000.0);
 
                 return;

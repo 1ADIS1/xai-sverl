@@ -7,12 +7,12 @@ pub struct Observation {
 }
 
 impl Grid<Tile> {
-    // pub fn full_observation(&self) -> Observation {
-    //     Observation {
-    //         positions: self.positions().collect(),
-    //         grid: self.clone(),
-    //     }
-    // }
+    pub fn full_observation(&self) -> Observation {
+        Observation {
+            positions: self.positions().collect(),
+            grid: self.clone(),
+        }
+    }
 
     pub fn all_subsets(&self) -> Vec<Observation> {
         let positions: Vec<_> = self.positions().collect();
@@ -27,41 +27,41 @@ impl Grid<Tile> {
     }
 
     pub fn shapley(&self, policy: &mut Policy) -> Grid<Grid<f64>> {
-        self.shapley_with_value(|observation| observation.value(policy))
+        self.shapley_with_value(|_feature, observation| observation.value(policy))
     }
 
     pub fn shapley_with_value(
         &self,
-        mut value: impl FnMut(&Observation) -> Grid<f64>,
+        mut value: impl FnMut(vec2<Coord>, &Observation) -> Grid<f64>,
     ) -> Grid<Grid<f64>> {
         let subsets = self.all_subsets();
         let n = self.positions().count();
         let scale = (factorial(n) as f64).recip();
 
         let mut cache = HashMap::<Observation, Grid<f64>>::new();
-        let mut value = move |observation: &Observation| {
+        let mut value = move |feature: vec2<Coord>, observation: &Observation| {
             if let Some(cached) = cache.get(observation) {
                 return cached.clone();
             }
-            let res = value(observation);
+            let res = value(feature, observation);
             cache.insert(observation.clone(), res.clone());
             res
         };
 
-        Grid::from_fn(|pos| {
+        Grid::from_fn(|feature| {
             let mut result = subsets
                 .iter()
                 .cloned()
                 .map(|observation| {
-                    let base_value = value(&observation);
+                    let base_value = value(feature, &observation);
                     let s = observation.positions.len();
 
                     let mut featureless = observation.clone();
-                    if !featureless.subtract(pos) {
+                    if !featureless.subtract(feature) {
                         return Grid::zero();
                     }
 
-                    let mut value = base_value - value(&featureless);
+                    let mut value = base_value - value(feature, &featureless);
                     value *= factorial(s) as f64 * factorial(n - s - 1) as f64;
                     value
                 })

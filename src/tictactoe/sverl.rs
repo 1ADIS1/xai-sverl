@@ -3,13 +3,13 @@ use super::*;
 use std::collections::BTreeMap;
 
 impl Grid<Tile> {
-    pub fn sverl_local(&self, gamma: f64, policy: &mut Policy) -> Grid<f64> {
+    pub fn sverl(&self, global: bool, gamma: f64, policy: &mut Policy) -> Grid<f64> {
         let Some(player) = self.current_player() else {
             return Grid::zero();
         };
 
         let mut cache = BTreeMap::new();
-        let values = self.shapley_with_value(|observation| {
+        let values = self.shapley_with_value(|feature, observation| {
             let states = observation.possible_states();
             let prob = (states.len() as f64).recip();
             let mut first = states
@@ -28,7 +28,26 @@ impl Grid<Tile> {
 
                 let mut grid = self.clone();
                 grid.set(pos, player.into());
-                result.set(pos, prob * grid.predict(&mut cache, gamma, policy));
+                let value = if global {
+                    let mut policy = Box::new(|state: &Grid| {
+                        let mut observation = state.full_observation();
+                        let sub = observation.subtract(feature);
+                        assert!(sub, "Full observation does not have the feature");
+
+                        let states = observation.possible_states();
+                        let prob = (states.len() as f64).recip();
+                        let mut res = states
+                            .into_iter()
+                            .map(|state| policy(&state))
+                            .fold(Grid::zero(), Grid::add);
+                        res *= prob; // pi_c, an approximation of the policy given limited knowledge
+                        res
+                    }) as Policy;
+                    grid.predict(&mut cache, gamma, &mut policy)
+                } else {
+                    grid.predict(&mut cache, gamma, policy)
+                };
+                result.set(pos, prob * value);
             }
             result
         });
