@@ -81,12 +81,9 @@ impl Ui {
         self.board_reset = button.translate(pos - offset * 6.0);
         self.board_policy_turn = button.translate(pos - offset * 7.0);
 
-        let tickbox_size = vec2::splat(1.5) * font_size;
-        let tickbox = Aabb2::ZERO.extend_symmetric(tickbox_size / 2.0);
-        let pos = geng_utils::layout::aabb_pos(self.method_sverl, vec2(1.0, 0.5));
-        self.method_sverl_global = tickbox
-            .translate(pos)
-            .translate(vec2(font_size + tickbox.width() / 2.0, 0.0));
+        let smol_button = vec2(3.5, 1.5) * font_size;
+        let pos = geng_utils::layout::align_aabb(smol_button, self.method_sverl, vec2(1.0, 0.5));
+        self.method_sverl_global = pos.translate(vec2(font_size + smol_button.x, 0.0));
     }
 }
 
@@ -347,42 +344,7 @@ impl State {
         draw_button("Policy Turn", self.ui.board_policy_turn, false);
 
         if let Method::Sverl { global } = self.method {
-            // Tickbox
-            let position = self.ui.method_sverl_global;
-
-            // Outline
-            let color = if global {
-                self.config.palette.button_border_active
-            } else {
-                self.config.palette.button_border
-            };
-            self.geng
-                .draw2d()
-                .draw2d(framebuffer, camera, &draw2d::Quad::new(position, color));
-
-            // Fill
-            let color = if position.contains(self.ui.cursor_pos) {
-                self.config.palette.button_background_hover
-            } else {
-                self.config.palette.button_background
-            };
-            self.geng.draw2d().draw2d(
-                framebuffer,
-                camera,
-                &draw2d::Quad::new(position.extend_uniform(-font_size * 0.2), color),
-            );
-
-            // Text
-            let font_size = font_size * 0.8;
-            self.geng.default_font().draw(
-                framebuffer,
-                camera,
-                "Global",
-                vec2::splat(geng::TextAlign::CENTER),
-                mat3::translate(position.center() + vec2(0.0, -font_size / 4.0))
-                    * mat3::scale_uniform(font_size),
-                Rgba::WHITE,
-            );
+            draw_button("Global", self.ui.method_sverl_global, global);
         }
     }
 }
