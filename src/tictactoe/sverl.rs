@@ -78,7 +78,7 @@ impl Grid<Tile> {
 
             let mut grid = self.clone();
             grid.set(pos, player.into());
-            result += prob * gamma * (grid.reward(player) + grid.predict(cache, gamma, policy));
+            result += prob * (grid.reward(player) + gamma * (grid.predict(cache, gamma, policy)));
         }
 
         cache.insert(self.clone(), result);

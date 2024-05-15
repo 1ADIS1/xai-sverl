@@ -20,9 +20,9 @@ pub struct State {
 
     model: Grid,
     minimax_cache: BTreeMap<Grid, Grid<f64>>,
-    shapley_values: Grid<Grid<f64>>,
-    sverl_values_local: Grid<f64>,
-    sverl_values_global: Grid<f64>,
+    shapley_values: Option<Grid<Grid<f64>>>,
+    sverl_values_local: Option<Grid<f64>>,
+    sverl_values_global: Option<Grid<f64>>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -108,11 +108,11 @@ impl State {
 
             model: Grid::new(),
             minimax_cache: BTreeMap::new(),
-            shapley_values: Grid::from_fn(|_| Grid::zero()),
-            sverl_values_local: Grid::zero(),
-            sverl_values_global: Grid::zero(),
+            shapley_values: None,
+            sverl_values_local: None,
+            sverl_values_global: None,
         };
-        state.update_values();
+        state.update_values(true);
         state
     }
 
@@ -154,21 +154,56 @@ impl State {
         );
     }
 
-    fn update_values(&mut self) {
+    fn update_values(&mut self, reset: bool) {
+        if reset {
+            self.shapley_values = None;
+            self.sverl_values_local = None;
+            self.sverl_values_global = None;
+        }
+
         log::debug!("updating shapley and sverl values");
         let mut policy = match self.policy {
             Policy::Random => policy_random(),
             Policy::Minimax => policy_minimax_cached(None, &mut self.minimax_cache),
         };
+
         let mut timer = Timer::new();
-        self.shapley_values = self.model.shapley(&mut policy);
-        log::debug!(
-            "updated shapley values in {:.3}s",
-            timer.tick().as_secs_f64()
-        );
-        self.sverl_values_local = self.model.sverl(false, 0.9, &mut policy);
-        self.sverl_values_global = self.model.sverl(true, 0.9, &mut policy);
-        log::debug!("updated sverl values in {:.3}s", timer.tick().as_secs_f64());
+        match self.method {
+            Method::Shapley => {
+                if self.shapley_values.is_some() {
+                    log::debug!("shapley values cached");
+                    return;
+                }
+                self.shapley_values = Some(self.model.shapley(&mut policy));
+                log::debug!(
+                    "updated shapley values in {:.3}s",
+                    timer.tick().as_secs_f64()
+                );
+            }
+            Method::Sverl { global } => {
+                if global {
+                    if self.sverl_values_global.is_some() {
+                        log::debug!("sverl global values cached");
+                        return;
+                    }
+                    self.sverl_values_global = Some(self.model.sverl(true, 0.9, &mut policy));
+                    log::debug!(
+                        "updated sverl global values in {:.3}s",
+                        timer.tick().as_secs_f64()
+                    );
+                } else {
+                    if self.sverl_values_local.is_some() {
+                        log::debug!("sverl local values cached");
+                        return;
+                    }
+                    self.sverl_values_local = Some(self.model.sverl(false, 0.9, &mut policy));
+                    log::debug!(
+                        "updated sverl local values in {:.3}s",
+                        timer.tick().as_secs_f64()
+                    );
+                }
+            }
+        }
     }
 
     fn ai_move(&mut self) {
@@ -190,7 +225,7 @@ impl State {
             }
         };
         self.model.set(action, player.into());
-        self.update_values();
+        self.update_values(true);
     }
 
     fn human_move(&mut self, pos: vec2<Coord>) {
@@ -201,11 +236,12 @@ impl State {
             return;
         };
         self.model.set(pos, player.into());
+        self.update_values(true);
     }
 
     fn reset(&mut self) {
         self.model = Grid::new();
-        self.update_values();
+        self.update_values(true);
     }
 
     fn click(&mut self, pos: vec2<f32>, button: geng::MouseButton) {
@@ -215,16 +251,18 @@ impl State {
 
         if self.ui.policy_random.contains(pos) {
             self.policy = Policy::Random;
-            self.update_values();
+            self.update_values(true);
         } else if self.ui.policy_minimax.contains(pos) {
             self.policy = Policy::Minimax;
-            self.update_values();
+            self.update_values(true);
         } else if self.ui.method_shapley.contains(pos) {
             self.method = Method::Shapley;
+            self.update_values(false);
         } else if self.ui.method_sverl.contains(pos) {
             self.method = Method::Sverl {
                 global: self.sverl_global,
             };
+            self.update_values(false);
         } else if self.ui.board_reset.contains(pos) {
             self.reset();
         } else if self.ui.board_policy_turn.contains(pos) {
@@ -233,6 +271,7 @@ impl State {
             if let Method::Sverl { global } = &mut self.method {
                 *global = !*global;
                 self.sverl_global = *global;
+                self.update_values(false);
             }
         } else {
             let world_pos = self
@@ -242,7 +281,6 @@ impl State {
             if cell_pos.x >= 0 && cell_pos.y >= 0 {
                 let cell_pos = cell_pos.map(|x| x as Coord);
                 self.human_move(cell_pos);
-                self.update_values();
             }
         }
     }
@@ -440,7 +478,8 @@ impl geng::State for State {
                                 .then(|| {
                                     let cell_pos = cell_pos.map(|x| x as Coord);
                                     self.shapley_values
-                                        .get(cell_pos)
+                                        .as_ref()
+                                        .and_then(|values| values.get(cell_pos))
                                         .and_then(|grid| grid.get(pos))
                                         .copied()
                                 })
@@ -453,7 +492,11 @@ impl geng::State for State {
                         } else {
                             &self.sverl_values_local
                         };
-                        values.get(pos).copied().unwrap_or(0.0) as f32
+                        values
+                            .as_ref()
+                            .and_then(|values| values.get(pos))
+                            .copied()
+                            .unwrap_or(0.0) as f32
                     }
                 };
 
