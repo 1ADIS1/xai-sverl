@@ -113,9 +113,11 @@ The first method to interpret the reinforcement learning model is to apply shapl
 
 The value function used to evaluate a policy, as defined in the paper, is the expected probability of each action over the distribution of possible states (given current partial observation).
 
-TODO: formula
+```math
+v^\pi(C) = \pi_c(a|s) = \sum_{s' \in S} p^\pi(s'|s_C) \pi(a|s') 
+```
 
-Where C is the observation (with the features from the coalition), p^\pi(s’|s_C) is the probability of seeing state `s’` given the observation `s_C`.
+Where C is the observation (with the features from the coalition), $`p^\pi(s’|s_C)`$ is the probability of seeing state $`s’`$ given the observation $`s_C`$.
 
 # SVERL-P
 
@@ -125,15 +127,27 @@ SVERL-P is divided into 2 methods: local and global ones.
 
 Local SVERL-P is essentially a prediction of the reward given uncertainty of the current observation.
 
-TODO: formula
+```math
+v^{local}(C) = E_{\hat\pi}[\sum_{t=0}^\infty \gamma^t r_{t+1} | s_0=s]
+```
 
-Where `r` is the reward (winner gets the reward of 1), \gamma is the discounting factor.
+Where
+```math
+\hat\pi(a_t|s_t) = \begin{cases} \pi_C(a_t|s_t)\ if\ s_t=s, \\ \pi(a_t|s_t)\ otherwise \end{cases}
+```
+$`r`$ is the reward (winner gets the reward of 1), $`\gamma`$ is the discounting factor.
 
 Global extends the uncertainty to all future states, rather than just the starting one.
 
-TODO: formula
+```math
+v^{global}(C) = E_{\pi_C}[\sum_{t=0}^{\infty} \gamma^t r_{t+1} | s_0=s]
+```
 
-Where `\phi_i` is the Shapley value.
+```math
+Ф_i(v^{global}) = E_{p^\pi(s)}[\phi_i(v^{global}, s)]
+```
+
+Where $`\phi_i`$ is the Shapley value.
 
 # Demo
 
