@@ -583,7 +583,7 @@ impl geng::State for State {
                             &format!("Minimax evaluation: {:+.2}", value),
                             vec2::splat(geng::TextAlign::CENTER),
                             mat3::translate(self.camera.center + vec2(0.0, -4.0))
-                                * mat3::scale_uniform(0.8),
+                                * mat3::scale_uniform(0.6),
                             self.config.palette.text,
                         );
                     }
