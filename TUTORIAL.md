@@ -22,17 +22,18 @@
   <p>https://www.toptal.com/machine-learning/deep-dive-into-reinforcement-learning</p>
 </div>
 
-Explainability and interpretability of AI models is a hot topic in the research community in recent times. With the growth of new technology and methods in the neural networks field, the endeavour to understand the “black box” models is rising in popularity.
+Explainability and interpretability of AI models is a hot topic in the research community in recent times. With the growth of new technologies and methods in the neural networks field, the endeavour to understand the “black box” models is rising in popularity.
 
 In this tutorial, you will learn 2 methods for explaining the reinforcement learning models:
-Applying Shapley values to policies
-Using SVERL-P method
+- Applying Shapley values to policies
+- Using SVERL-P method
 
 Before we start, this tutorial is based on the paper “Explaining Reinforcement Learning with Shapley Values” by Beechey et. al. [1], where the researchers present 2 approaches on how to explain reinforcement learning models with Shapley values.
 
 Also, we assume that you are familiar with machine learning, reinforcement learning, but not familiar with explainable artificial intelligence.
 
-A quick reminder: reinforcement learning is a type of unsupervised learning technique, in which you train the agent in the environment, which can vary from a hide-and-seek game to a driving simulation.
+A quick reminder: reinforcement learning is a type of unsupervised learning technique, in which you train the agent in the environment, which can vary from a 
+[hide-and-seek game](https://www.youtube.com/watch?v=kopoLzvh5jY) to a [traffic simulation](https://github.com/facebookresearch/nocturne).
 
 <div align="center">
   <img src="docs/hide_and_seek.gif">
