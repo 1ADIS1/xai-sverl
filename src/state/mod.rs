@@ -67,9 +67,9 @@ impl Ui {
         }
     }
 
-    pub fn layout(&mut self, framebuffer_size: vec2<f32>) {
+    pub fn layout(&mut self, portrait: bool, framebuffer_size: vec2<f32>) {
         let font_size = framebuffer_size.x.min(framebuffer_size.y) * 0.03;
-        let font_size = font_size.max(10.0);
+        let font_size = font_size.max(13.0);
         self.font_size = font_size;
 
         let button_size = vec2(7.0, 2.0) * font_size;
@@ -393,7 +393,13 @@ impl geng::State for State {
     }
 
     fn draw(&mut self, framebuffer: &mut ugli::Framebuffer) {
-        self.ui.layout(framebuffer.size().as_f32());
+        let portrait = framebuffer.size().x < framebuffer.size().y;
+        if portrait {
+            self.camera.fov = 10.0;
+        } else {
+            self.camera.fov = 7.0;
+        };
+        self.ui.layout(portrait, framebuffer.size().as_f32());
 
         self.framebuffer_size = framebuffer.size();
         ugli::clear(
