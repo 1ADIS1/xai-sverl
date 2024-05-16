@@ -522,6 +522,10 @@ impl geng::State for State {
                             grid.set(cell_pos, player.into());
                             let (_action, value) =
                                 minimax_action(&grid, &mut self.minimax_cache, player.next(), None);
+                            let value = match player {
+                                Player::X => -value,
+                                Player::O => value,
+                            };
 
                             match player {
                                 Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
