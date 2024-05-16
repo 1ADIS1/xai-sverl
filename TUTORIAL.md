@@ -50,11 +50,11 @@ For the implementation, we will be using a ⚡blazingly fast⚡ and statically-t
   <p>Yearly growth trends. Papers before 2013 were omitted for readability [3].</p>
 </div>
 
-Explainable Artificial Intelligence (XAI) is a field of study that seeks to make AI systems more understandable and interpretable to humans [4].
+**Explainable Artificial Intelligence (XAI)** is a field of study that seeks to make AI systems more understandable and interpretable to humans [4].
 
-Interpretability is the ability of a human to understand the reasoning behind a decision made by an AI system [4].
+**Interpretability** is the ability of a human to understand the reasoning behind a decision made by an AI system [4].
 
-Fair AI - AI systems can perpetuate and amplify existing societal biases if they are not carefully designed. Fair AI techniques can help to ensure that AI systems make decisions that are fair and unbiased for all people [4].
+**Fair AI**: AI systems can perpetuate and amplify existing societal biases if they are not carefully designed. Fair AI techniques can help to ensure that AI systems make decisions that are fair and unbiased for all people [4].
 
 There are many techniques, methods, and algorithms invented in recent years to explain AI and design it to be fair. These techniques involve: LIME (Locally Interpretable Model-Agnostic Explanations), SHAP (Shapley Additive exPlanations), DeepDream, SVERL-P, and many more.
 
@@ -86,10 +86,10 @@ One more thing about Shapley values is that they satisfy the following 4 propert
   <p>4 properties of Shapley values [4].</p>
 </div>
 
-- Efficiency - the sum of the Shapley values of all agents equals the value of the grand coalition, so that all the gain is distributed among the agents.
-- Symmetry - two players are considered interchangeable if they make the same contribution to all coalitions.
-- Null player - if the player makes 0 contribution to all coalitions, then they have zero shapley value.
-- Linearity (Additivity) - shapley value of coalition is equal to shapley values of individuals in this coalition.
+- **Efficiency** - the sum of the Shapley values of all agents equals the value of the grand coalition, so that all the gain is distributed among the agents.
+- **Symmetry** - two players are considered interchangeable if they make the same contribution to all coalitions.
+- **Null player** - if the player makes 0 contribution to all coalitions, then they have zero shapley value.
+- **Linearity (Additivity)** - shapley value of coalition is equal to shapley values of individuals in this coalition.
 
 
 ## Environment
@@ -106,24 +106,24 @@ In the centre of the screen there is a grid of cells, where each cell contains e
 Exact implementation of this environment is out of scope for this tutorial. However, you can find the full source code on our GitHub [7].
 
 In this simple environment we will introduce 2 models/policies and try to interpret their actions. For that reason, we first need to describe the environment in terms of Markov Decision Process:
-- State is the grid, consisting of 9 cells.
-- Action is an input from the user to place a shape. In our case, we have 9 actions, one for each cell. Environment handles the turns automatically, so that is why you do not need to worry about which shape to put.
-- Rewards
-- Policies: random and minimax.
-  - Random policy outputs a random legal move, i.e. it cannot place a shape on the occupied cell or make turns when the game is finished.
-  - Minimax calculates all possible game outcomes for both players, and compares them. As output it produces the action, which leads to a maximum available value.
+- **State** is the grid, consisting of 9 cells.
+- **Action** is an input from the user to place a shape. In our case, we have 9 actions, one for each cell. Environment handles the turns automatically, so that is why you do not need to worry about which shape to put.
+- **Reward** is either 0 or 1 (player either wins a game or looses)
+- **Policies**: random and minimax.
+  - **Random** policy outputs a random legal move, i.e. it cannot place a shape on the occupied cell or make turns when the game is finished.
+  - **Minimax** calculates all possible game outcomes for both players, and compares them. As output it produces the action, which leads to a maximum available value.
 
 
 ## Shapley values applied to policy
 
 Before applying the method, we need to define terms and try to understand them.
 
-Policy takes a state and returns the probability distribution over possible actions.
-Observation is the state with some of the features (cells) hidden.
+- **Policy** takes a state and returns the probability distribution over possible actions.
+- **Observation** is the state with some of the features (cells) hidden.
 
 The first method to interpret the reinforcement learning model is to apply shapley values directly to the policy,
 
-The value function used to evaluate a policy, as defined in the paper, is the expected probability of each action over the distribution of possible states (given current partial observation).
+The **value function** used to evaluate a policy, as defined in the paper, is the expected probability of each action over the distribution of possible states (given current partial observation).
 
 ```math
 v^\pi(C) = \pi_c(a|s) = \sum_{s' \in S} p^\pi(s'|s_C) \pi(a|s') 
@@ -246,18 +246,22 @@ Where $`\phi_i`$ is the Shapley value.
 
 ## Demo
 
+
 You can try out environment from this tutorial in the web for yourself: https://1adis1.github.io/xai-sverl/
 
 <div align="center">
   <img src="docs/shapley.gif">
 </div>
 
+
 ## Conclusion
+
 
 As a result, we have implemented Shapley values and SVERL-P algorithm to Tic-Tac-Toe. While Shapley values are used for interpreting specific actions of the policy, it may be difficult to understand their impact on the game. And SVERL-P is designed to solve that problem by showing directly the contribution of each feature to the outcome of the game.
 
 
 ## References
+
 
 - [1] [Beechey et. al. “Explaining Reinforcement Learning with Shapley Values”](https://proceedings.mlr.press/v202/beechey23a/beechey23a.pdf)
 - [2] [OpenAI Hide-and-Seek simulation](https://www.youtube.com/watch?v=kopoLzvh5jY)
