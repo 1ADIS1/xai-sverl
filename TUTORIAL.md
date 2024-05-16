@@ -113,6 +113,20 @@ In this simple environment we will introduce 2 models/policies and try to interp
   - **Random** policy outputs a random legal move, i.e. it cannot place a shape on the occupied cell or make turns when the game is finished.
   - **Minimax** calculates all possible game outcomes for both players, and compares them. As output it produces the action, which leads to a maximum available value.
 
+```rust
+pub enum Tile {
+    Empty,
+    X,
+    O,
+}
+
+pub struct Grid<T = Tile> {
+    pub cells: [[T; 3]; 3],
+}
+
+pub type Policy = Box<dyn FnMut(&Grid) -> Grid<f64>>; // policies return the probabilty distribution over possible action
+pub type Action = vec2<Coord>;
+```
 
 ## Shapley values applied to policy
 
@@ -243,6 +257,31 @@ v^{global}(C) = E_{\pi_C}[\sum_{t=0}^{\infty} \gamma^t r_{t+1} | s_0=s]
 ```
 
 Where $`\phi_i`$ is the Shapley value.
+
+The difference with the previous (regular Shapley) value function is the future prediction. So, after calculating the initial $`\pi_C`$ the same way (`Observation::value`), we recursively go through all the states in the future and calculate the expected reward, according to the policy action distribution.
+```rust
+impl Grid {
+    fn predict(&self, gamma: f64, policy: &mut Policy) -> f64 {
+        let Some(player) = self.current_player() else {
+            return 0.0; // The game has ended
+        };
+
+        let mut result = 0.0; // Expected reward
+        let weights = policy(self); // action probability distribution
+        for pos in self.empty_positions() {
+            let prob = weights.get(pos).unwrap();
+
+            let mut grid = self.clone();
+            grid.set(pos, player.into());
+
+            let immediate_reward = grid.reward(player);
+            let future_reward = gamma * grid.predict(gamma, policy);
+            result += prob * (immediate_reward + future_reward);
+        }
+        result
+    }
+}
+```
 
 ## Demo
 
