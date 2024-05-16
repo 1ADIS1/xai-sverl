@@ -108,6 +108,7 @@ impl Observation {
             .collect()
     }
 
+    // Returns `pi_c`, an approximation of the policy given limited knowledge
     pub fn value(&self, policy: &mut Policy) -> Grid<f64> {
         let states = self.possible_states();
         let prob = (states.len() as f64).recip();

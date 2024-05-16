@@ -10,14 +10,7 @@ impl Grid<Tile> {
 
         let mut cache = BTreeMap::new();
         let values = self.shapley_with_value(|feature, observation| {
-            let states = observation.possible_states();
-            let prob = (states.len() as f64).recip();
-            let mut first = states
-                .into_iter()
-                .map(|state| policy(&state))
-                .fold(Grid::zero(), Grid::add);
-            first *= prob;
-            // `first` here is pi_c, an approximation of the policy given limited knowledge
+            let first = observation.value(policy);
 
             let mut result = Grid::zero();
             for pos in self.empty_positions() {
@@ -33,15 +26,7 @@ impl Grid<Tile> {
                         let mut observation = state.full_observation();
                         let sub = observation.subtract(feature);
                         assert!(sub, "Full observation does not have the feature");
-
-                        let states = observation.possible_states();
-                        let prob = (states.len() as f64).recip();
-                        let mut res = states
-                            .into_iter()
-                            .map(|state| policy(&state))
-                            .fold(Grid::zero(), Grid::add);
-                        res *= prob; // pi_c, an approximation of the policy given limited knowledge
-                        res
+                        observation.value(policy)
                     }) as Policy;
                     grid.predict(&mut cache, gamma, &mut policy)
                 } else {
@@ -78,7 +63,10 @@ impl Grid<Tile> {
 
             let mut grid = self.clone();
             grid.set(pos, player.into());
-            result += prob * (grid.reward(player) + gamma * (grid.predict(cache, gamma, policy)));
+
+            let immediate_reward = grid.reward(player);
+            let future_reward = gamma * grid.predict(cache, gamma, policy);
+            result += prob * (immediate_reward + future_reward);
         }
 
         cache.insert(self.clone(), result);
