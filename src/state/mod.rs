@@ -69,7 +69,7 @@ impl Ui {
 
     pub fn layout(&mut self, framebuffer_size: vec2<f32>) {
         let font_size = framebuffer_size.x.min(framebuffer_size.y) * 0.03;
-        let font_size = font_size.max(20.0);
+        let font_size = font_size.max(10.0);
         self.font_size = font_size;
 
         let button_size = vec2(7.0, 2.0) * font_size;
