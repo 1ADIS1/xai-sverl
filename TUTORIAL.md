@@ -131,6 +131,89 @@ v^\pi(C) = \pi_c(a|s) = \sum_{s' \in S} p^\pi(s'|s_C) \pi(a|s')
 
 Where C is the observation (with the features from the coalition), $`p^\pi(s’|s_C)`$ is the probability of seeing state $`s’`$ given the observation $`s_C`$.
 
+So, to calculate the Shapley value for each feature for every action, we first need to get all partial observations:
+```rust
+impl Grid {
+    pub fn all_subsets(&self) -> Vec<Observation> {
+        let positions: Vec<_> = self.positions().collect();
+        powerset(&positions)
+            .into_iter()
+            .skip(1) // Skip the set itself
+            .map(|positions| Observation {
+                positions,
+                grid: self.clone(),
+            })
+            .collect()
+    }
+}
+```
+
+Then, for every observation we calculate the value function for it and for the observation without the `feature` we're calculating for:
+```rust
+let observations = grid.all_subsets();
+let n = grid.positions().count(); // number of all features
+observations
+    .iter()
+    .cloned()
+    .map(|observation| {
+        let base_value = value(feature, &observation);
+        let s = observation.positions.len();
+        let scale = factorial(s) as f64 * factorial(n - s - 1) as f64 / factorial(n) as f64;
+
+        let featureless = observation.subtract(feature);
+
+        let mut value = base_value - value(feature, &featureless);
+        value *= scale;
+        value
+    })
+    .fold(Grid::zero(), Grid::add)
+```
+
+The value function itself is the expected value for every action, and is easy to implement.
+But we also need to calculate possible states given the observation.
+We can do that by iterating over all hidden cells in the grid and checking all 3 possible states for that cell.
+```rust
+impl Observation {
+    pub fn value(&self, policy: &mut Policy) -> Grid<f64> {
+        let states = self.possible_states();
+        let scale = (states.len() as f64).recip();
+
+        let mut result = states
+            .into_iter()
+            .map(|state| policy(&state))
+            .fold(Grid::zero(), Grid::add);
+        result *= scale;
+        result
+    }
+
+    pub fn possible_states(&self) -> Vec<Grid> {
+        let hidden: Vec<_> = self
+            .grid
+            .positions()
+            .filter(|pos| !self.positions.contains(pos))
+            .collect();
+
+        (0..3usize.pow(hidden.len() as u32))
+            .map(|i| {
+                let mut grid = self.grid.clone();
+                for (pos, cell) in hidden.iter().enumerate().map(|(t, &pos)| {
+                    let cell = match (i / 3_usize.pow(t as u32)) % 3 {
+                        0 => Tile::Empty,
+                        1 => Tile::X,
+                        2 => Tile::O,
+                        _ => unreachable!(),
+                    };
+                    (pos, cell)
+                }) {
+                    grid.set(pos, cell);
+                }
+                grid
+            })
+            .collect()
+    }
+}
+```
+
 ## SVERL-P
 
 Instead of applying shapley values directly to policy, we can use a better approach, which is called Shapley Values for Explaining Reinforcement Learning Performance or in short SVERL-P.
