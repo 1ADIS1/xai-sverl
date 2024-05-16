@@ -40,7 +40,7 @@ A quick reminder: reinforcement learning is a type of unsupervised learning tech
   <p>OpenAI reinforcement learning research paper visualisation [2].</p>
 </div>
 
-For the implementation, we will be using a ⚡blazingly fast⚡ and statically-typed programming language called 🦀 Rust 🦀. We will provide a few snippets, but our main goal is to provide you with the idea on implementation, so you can try to implement these methods in your favourite programming language.
+For the implementation, we will be using a ⚡blazingly fast⚡ and statically-typed programming language called 🦀 Rust 🦀. We will provide a few code snippets, but our main goal is to provide you with the idea on implementation, so you can try to implement these methods in your favourite programming language.
 
 
 ## Explainable Artificial Intelligence
@@ -70,7 +70,7 @@ Imagine you and your friend are making a group project in a university course. A
 
 <div align="center">
   <img src="docs/shapley_formula.png">
-  <p>Shapley value formula [4].</p>
+  <p>Shapley value formula [5].</p>
 </div>
 
 Shapley values are a concept from cooperative game theory that provides a way to fairly distribute the marginal gains among players in a coalition, ensuring that each player gets as much or more than they would have if they acted independently.
@@ -79,11 +79,11 @@ In the above formula, your friend’s val(S) = 75, and the value of both of you 
 
 After all the calculations are done, you get a fair assessment of your performance, and prove to your teaching instructor that you deserve a better grade.
 
-One more thing about Shapley values is that they satisfy the following 4 properties [5]:
+One more thing about Shapley values is that they satisfy the following 4 properties [6]:
 
 <div align="center">
   <img src="docs/shapley_properties.png">
-  <p>4 properties of Shapley values [4].</p>
+  <p>4 properties of Shapley values [5].</p>
 </div>
 
 - **Efficiency** - the sum of the Shapley values of all agents equals the value of the grand coalition, so that all the gain is distributed among the agents.
@@ -99,11 +99,11 @@ One more thing about Shapley values is that they satisfy the following 4 propert
   <img src="docs/tic_tac_toe.png">
 </div>
 
-For this project, we have coded the Tic-Tac-Toe game in the Rust programming language using Geng game engine [6].
+For this project, we have coded the Tic-Tac-Toe game in the Rust programming language using Geng game engine [7].
 
 In the centre of the screen there is a grid of cells, where each cell contains either: nothing, cross, or circle. Players make moves in-turns, and one of them wins if they either make a consequent horizontal, vertical, or diagonal line of the same shape, corresponding to them (circle or cross).
 
-Exact implementation of this environment is out of scope for this tutorial. However, you can find the full source code on our GitHub [7].
+Exact implementation of this environment is out of scope for this tutorial. However, you can find the full source code on our GitHub [8].
 
 In this simple environment we will introduce 2 models/policies and try to interpret their actions. For that reason, we first need to describe the environment in terms of Markov Decision Process:
 - **State** is the grid, consisting of 9 cells.
@@ -305,8 +305,8 @@ As a result, we have implemented Shapley values and SVERL-P algorithm to Tic-Tac
 - [1] [Beechey et. al. “Explaining Reinforcement Learning with Shapley Values”](https://proceedings.mlr.press/v202/beechey23a/beechey23a.pdf)
 - [2] [OpenAI Hide-and-Seek simulation](https://www.youtube.com/watch?v=kopoLzvh5jY)
 - [3] [Trends in Explainable AI by Alon Jacovi](https://arxiv.org/pdf/2301.05433)
-- [3] Rustam Lukmanov, Explainable and Fair AI, Spring 24, Lecture 1
-- [4] [The mathematics behind Shapley Values](https://www.youtube.com/watch?v=UJeu29wq7d0)
-- [5] [Shapley values](https://en.wikipedia.org/wiki/Shapley_value#Properties)
-- [6] [Geng game engine](https://github.com/geng-engine/geng)
-- [7] [Our implementation with environment in Rust](https://github.com/1ADIS1/xai-sverl)
+- [4] Rustam Lukmanov, Explainable and Fair AI, Spring 24, Lecture 1
+- [5] [The mathematics behind Shapley Values](https://www.youtube.com/watch?v=UJeu29wq7d0)
+- [6] [Shapley values](https://en.wikipedia.org/wiki/Shapley_value#Properties)
+- [7] [Geng game engine](https://github.com/geng-engine/geng)
+- [8] [Our implementation with environment in Rust](https://github.com/1ADIS1/xai-sverl)
