@@ -75,18 +75,46 @@ impl Ui {
         let button_size = vec2(7.0, 2.0) * font_size;
         let button = Aabb2::ZERO.extend_positive(button_size);
 
-        let pos = framebuffer_size * vec2(0.1, 0.7);
-        let offset = vec2(0.0, button.height() + font_size * 0.5);
-        self.policy_random = button.translate(pos);
-        self.policy_minimax = button.translate(pos - offset);
-        self.method_shapley = button.translate(pos - offset * 3.0);
-        self.method_sverl = button.translate(pos - offset * 4.0);
-        self.board_reset = button.translate(pos - offset * 6.0);
-        self.board_policy_turn = button.translate(pos - offset * 7.0);
+        let pos = framebuffer_size
+            * if portrait {
+                vec2(0.1, 0.9)
+            } else {
+                vec2(0.1, 0.7)
+            };
+        let offset_x = vec2(button.width() + font_size * 0.5, 0.0);
+        let offset_y = vec2(0.0, button.height() + font_size * 0.5);
+        let offset = if portrait { -offset_x } else { offset_y };
+        if portrait {
+            self.policy_random = button.translate(pos);
+            self.policy_minimax = button.translate(pos - offset_y);
+            self.method_shapley = button.translate(pos - offset * 1.0);
+            self.method_sverl = button.translate(pos - offset * 1.0 - offset_y);
+            self.board_reset = button.translate(pos - offset * 2.0);
+            self.board_policy_turn = button.translate(pos - offset * 2.0 - offset_y);
+        } else {
+            self.policy_random = button.translate(pos);
+            self.policy_minimax = button.translate(pos - offset);
+            self.method_shapley = button.translate(pos - offset * 3.0);
+            self.method_sverl = button.translate(pos - offset * 4.0);
+            self.board_reset = button.translate(pos - offset * 6.0);
+            self.board_policy_turn = button.translate(pos - offset * 7.0);
+        }
 
         let smol_button = vec2(3.5, 1.5) * font_size;
-        let pos = geng_utils::layout::align_aabb(smol_button, self.method_sverl, vec2(1.0, 0.5));
-        self.method_sverl_global = pos.translate(vec2(font_size + smol_button.x, 0.0));
+        let pos = geng_utils::layout::align_aabb(
+            smol_button,
+            self.method_sverl,
+            if portrait {
+                vec2(0.5, 0.0)
+            } else {
+                vec2(1.0, 0.5)
+            },
+        );
+        self.method_sverl_global = pos.translate(if portrait {
+            vec2(0.0, -font_size - smol_button.y)
+        } else {
+            vec2(font_size + smol_button.x, 0.0)
+        });
     }
 }
 
