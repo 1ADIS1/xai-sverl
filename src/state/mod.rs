@@ -1,4 +1,5 @@
 use crate::{
+    controls::*,
     tictactoe::{Tile, *},
     Config,
 };
@@ -17,6 +18,8 @@ pub struct State {
     policy: Policy,
     method: Method,
     sverl_global: bool,
+
+    touch: TouchController,
 
     model: Grid,
     minimax_cache: BTreeMap<Grid, Grid<f64>>,
@@ -102,6 +105,8 @@ impl State {
             policy: Policy::Minimax,
             method: Method::Sverl { global: false },
             sverl_global: false,
+
+            touch: TouchController::new(),
 
             model: Grid::new(),
             minimax_cache: BTreeMap::new(),
@@ -350,11 +355,21 @@ impl State {
 }
 
 impl geng::State for State {
-    fn update(&mut self, _delta_time: f64) {
+    fn update(&mut self, delta_time: f64) {
+        self.touch.update(delta_time);
         self.camera.center = self.model.bounds().map(|x| x as f32).center();
     }
 
     fn handle_event(&mut self, event: geng::Event) {
+        if let Some(action) = self.touch.handle_event(&event) {
+            match action {
+                TouchAction::ShortTap { position } => {
+                    self.click(position.as_f32(), geng::MouseButton::Left)
+                }
+                TouchAction::Move { position } => self.ui.cursor_pos = position.as_f32(),
+            }
+        }
+
         match event {
             geng::Event::KeyPress { key } => match key {
                 geng::Key::Space => {
@@ -426,28 +441,24 @@ impl geng::State for State {
         for pos in self.model.positions() {
             if let Some(cell) = self.model.get(pos) {
                 let value = match self.method {
-                    Method::Shapley => self
-                        .geng
-                        .window()
-                        .cursor_position()
-                        .and_then(|mouse_pos| {
-                            let mouse_pos = self.camera.screen_to_world(
-                                self.framebuffer_size.as_f32(),
-                                mouse_pos.as_f32(),
-                            );
-                            let cell_pos = mouse_pos.map(|x| x.floor() as isize);
-                            (cell_pos.x >= 0 && cell_pos.y >= 0)
-                                .then(|| {
-                                    let cell_pos = cell_pos.map(|x| x as Coord);
-                                    self.shapley_values
-                                        .as_ref()
-                                        .and_then(|values| values.get(cell_pos))
-                                        .and_then(|grid| grid.get(pos))
-                                        .copied()
-                                })
-                                .flatten()
-                        })
-                        .unwrap_or(0.0) as f32,
+                    Method::Shapley => {
+                        let mouse_pos = self.ui.cursor_pos;
+                        let mouse_pos = self
+                            .camera
+                            .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
+                        let cell_pos = mouse_pos.map(|x| x.floor() as isize);
+                        (cell_pos.x >= 0 && cell_pos.y >= 0)
+                            .then(|| {
+                                let cell_pos = cell_pos.map(|x| x as Coord);
+                                self.shapley_values
+                                    .as_ref()
+                                    .and_then(|values| values.get(cell_pos))
+                                    .and_then(|grid| grid.get(pos))
+                                    .copied()
+                            })
+                            .flatten()
+                            .unwrap_or(0.0) as f32
+                    }
                     Method::Sverl { global } => {
                         let values = if global {
                             &self.sverl_values_global
@@ -509,39 +520,38 @@ impl geng::State for State {
             );
         } else {
             // Display minimax evaluation
-            if let Some(mouse_pos) = self.geng.window().cursor_position() {
-                let mouse_pos = self
-                    .camera
-                    .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
-                let cell_pos = mouse_pos.map(|x| x.floor() as isize);
-                if cell_pos.x >= 0 && cell_pos.y >= 0 {
-                    let cell_pos = cell_pos.map(|x| x as Coord);
-                    if let Some(Tile::Empty) = self.model.get(cell_pos) {
-                        let mut grid = self.model.clone();
-                        if let Some(player) = grid.current_player() {
-                            grid.set(cell_pos, player.into());
-                            let (_action, value) =
-                                minimax_action(&grid, &mut self.minimax_cache, player.next(), None);
-                            let value = match player {
-                                Player::X => -value,
-                                Player::O => value,
-                            };
+            let mouse_pos = self.ui.cursor_pos;
+            let mouse_pos = self
+                .camera
+                .screen_to_world(self.framebuffer_size.as_f32(), mouse_pos.as_f32());
+            let cell_pos = mouse_pos.map(|x| x.floor() as isize);
+            if cell_pos.x >= 0 && cell_pos.y >= 0 {
+                let cell_pos = cell_pos.map(|x| x as Coord);
+                if let Some(Tile::Empty) = self.model.get(cell_pos) {
+                    let mut grid = self.model.clone();
+                    if let Some(player) = grid.current_player() {
+                        grid.set(cell_pos, player.into());
+                        let (_action, value) =
+                            minimax_action(&grid, &mut self.minimax_cache, player.next(), None);
+                        let value = match player {
+                            Player::X => -value,
+                            Player::O => value,
+                        };
 
-                            match player {
-                                Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
-                                Player::O => self.draw_o(cell_pos, 0.5, framebuffer),
-                            }
-
-                            self.geng.default_font().draw(
-                                framebuffer,
-                                &self.camera,
-                                &format!("Minimax evaluation: {:+.2}", value),
-                                vec2::splat(geng::TextAlign::CENTER),
-                                mat3::translate(self.camera.center + vec2(0.0, -4.0))
-                                    * mat3::scale_uniform(0.8),
-                                self.config.palette.text,
-                            );
+                        match player {
+                            Player::X => self.draw_x(cell_pos, 0.5, framebuffer),
+                            Player::O => self.draw_o(cell_pos, 0.5, framebuffer),
                         }
+
+                        self.geng.default_font().draw(
+                            framebuffer,
+                            &self.camera,
+                            &format!("Minimax evaluation: {:+.2}", value),
+                            vec2::splat(geng::TextAlign::CENTER),
+                            mat3::translate(self.camera.center + vec2(0.0, -4.0))
+                                * mat3::scale_uniform(0.8),
+                            self.config.palette.text,
+                        );
                     }
                 }
             }
